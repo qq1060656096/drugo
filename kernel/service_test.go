@@ -90,7 +90,7 @@ func (m *MockRunner) Run(ctx context.Context) error {
 	if m.runErr != nil {
 		return m.runErr
 	}
-	
+
 	// 模拟长期运行的服务，直到上下文取消
 	<-ctx.Done()
 	return ctx.Err()
@@ -130,11 +130,11 @@ func (m *MockContainer) Get(name string) (Service, error) {
 	if err, exists := m.getErr[name]; exists {
 		return nil, err
 	}
-	
+
 	if svc, exists := m.services[name]; exists {
 		return svc, nil
 	}
-	
+
 	return nil, NewServiceNotFound(name)
 }
 
@@ -259,11 +259,11 @@ func TestGetService(t *testing.T) {
 	t.Run("成功获取正确类型的服务", func(t *testing.T) {
 		kernel := NewMockKernel()
 		container := kernel.GetMockContainer()
-		
+
 		// 注册一个 MockService
 		mockSvc := NewMockService("test-service")
 		container.Bind("test-service", mockSvc)
-		
+
 		// 获取服务
 		svc, err := GetService[*MockService](kernel, "test-service")
 		require.NoError(t, err)
@@ -273,7 +273,7 @@ func TestGetService(t *testing.T) {
 
 	t.Run("服务不存在", func(t *testing.T) {
 		kernel := NewMockKernel()
-		
+
 		// 尝试获取不存在的服务
 		svc, err := GetService[*MockService](kernel, "non-existent")
 		assert.Error(t, err)
@@ -285,11 +285,11 @@ func TestGetService(t *testing.T) {
 	t.Run("服务类型不匹配", func(t *testing.T) {
 		kernel := NewMockKernel()
 		container := kernel.GetMockContainer()
-		
+
 		// 注册一个 MockService
 		mockSvc := NewMockService("test-service")
 		container.Bind("test-service", mockSvc)
-		
+
 		// 尝试获取为不同的类型
 		svc, err := GetService[*MockRunner](kernel, "test-service")
 		assert.Error(t, err)
@@ -302,11 +302,11 @@ func TestGetService(t *testing.T) {
 	t.Run("容器获取错误", func(t *testing.T) {
 		kernel := NewMockKernel()
 		container := kernel.GetMockContainer()
-		
+
 		// 设置获取错误
 		testErr := errors.New("container error")
 		container.SetGetError("error-service", testErr)
-		
+
 		// 尝试获取服务
 		svc, err := GetService[*MockService](kernel, "error-service")
 		assert.Error(t, err)
@@ -318,17 +318,17 @@ func TestGetService(t *testing.T) {
 	t.Run("获取 Runner 类型服务", func(t *testing.T) {
 		kernel := NewMockKernel()
 		container := kernel.GetMockContainer()
-		
+
 		// 注册一个 MockRunner
 		mockRunner := NewMockRunner("test-runner")
 		container.Bind("test-runner", mockRunner)
-		
+
 		// 获取为 Service 类型
 		svc, err := GetService[Service](kernel, "test-runner")
 		require.NoError(t, err)
 		assert.Equal(t, mockRunner, svc)
 		assert.Equal(t, "test-runner", svc.Name())
-		
+
 		// 获取为 Runner 类型
 		runner, err := GetService[Runner](kernel, "test-runner")
 		require.NoError(t, err)
@@ -338,16 +338,16 @@ func TestGetService(t *testing.T) {
 	t.Run("获取为接口类型", func(t *testing.T) {
 		kernel := NewMockKernel()
 		container := kernel.GetMockContainer()
-		
+
 		// 注册一个 MockService
 		mockSvc := NewMockService("interface-service")
 		container.Bind("interface-service", mockSvc)
-		
+
 		// 获取为 Booter 接口
 		booter, err := GetService[Booter](kernel, "interface-service")
 		require.NoError(t, err)
 		assert.Equal(t, mockSvc, booter)
-		
+
 		// 获取为 Closer 接口
 		closer, err := GetService[Closer](kernel, "interface-service")
 		require.NoError(t, err)
@@ -359,40 +359,40 @@ func TestGetService(t *testing.T) {
 func TestGetService_DifferentTypes(t *testing.T) {
 	kernel := NewMockKernel()
 	container := kernel.GetMockContainer()
-	
+
 	// 注册不同类型的服务
 	mockSvc := NewMockService("service")
 	mockRunner := NewMockRunner("runner")
-	
+
 	container.Bind("service", mockSvc)
 	container.Bind("runner", mockRunner)
-	
+
 	t.Run("获取具体类型", func(t *testing.T) {
 		svc, err := GetService[*MockService](kernel, "service")
 		require.NoError(t, err)
 		assert.Equal(t, mockSvc, svc)
-		
+
 		runner, err := GetService[*MockRunner](kernel, "runner")
 		require.NoError(t, err)
 		assert.Equal(t, mockRunner, runner)
 	})
-	
+
 	t.Run("获取接口类型", func(t *testing.T) {
 		svc, err := GetService[Service](kernel, "service")
 		require.NoError(t, err)
 		assert.Equal(t, mockSvc, svc)
-		
+
 		runner, err := GetService[Runner](kernel, "runner")
 		require.NoError(t, err)
 		assert.Equal(t, mockRunner, runner)
 	})
-	
+
 	t.Run("类型不匹配", func(t *testing.T) {
 		// 尝试将 Service 获取为 Runner
 		_, err := GetService[Runner](kernel, "service")
 		assert.Error(t, err)
 		assert.True(t, IsServiceType(err))
-		
+
 		// 尝试将 Runner 获取为不匹配的具体类型
 		_, err = GetService[*MockService](kernel, "runner")
 		assert.Error(t, err)
@@ -405,11 +405,11 @@ func TestMustGetService(t *testing.T) {
 	t.Run("成功获取服务", func(t *testing.T) {
 		kernel := NewMockKernel()
 		container := kernel.GetMockContainer()
-		
+
 		// 注册一个 MockService
 		mockSvc := NewMockService("must-service")
 		container.Bind("must-service", mockSvc)
-		
+
 		// 获取服务
 		svc := MustGetService[*MockService](kernel, "must-service")
 		assert.Equal(t, mockSvc, svc)
@@ -418,7 +418,7 @@ func TestMustGetService(t *testing.T) {
 
 	t.Run("服务不存在时 panic", func(t *testing.T) {
 		kernel := NewMockKernel()
-		
+
 		// 验证 panic
 		assert.Panics(t, func() {
 			MustGetService[*MockService](kernel, "non-existent")
@@ -428,11 +428,11 @@ func TestMustGetService(t *testing.T) {
 	t.Run("类型不匹配时 panic", func(t *testing.T) {
 		kernel := NewMockKernel()
 		container := kernel.GetMockContainer()
-		
+
 		// 注册一个 MockService
 		mockSvc := NewMockService("type-mismatch")
 		container.Bind("type-mismatch", mockSvc)
-		
+
 		// 验证 panic
 		assert.Panics(t, func() {
 			MustGetService[*MockRunner](kernel, "type-mismatch")
@@ -442,11 +442,11 @@ func TestMustGetService(t *testing.T) {
 	t.Run("容器错误时 panic", func(t *testing.T) {
 		kernel := NewMockKernel()
 		container := kernel.GetMockContainer()
-		
+
 		// 设置获取错误
 		testErr := errors.New("container error")
 		container.SetGetError("panic-service", testErr)
-		
+
 		// 验证 panic
 		assert.Panics(t, func() {
 			MustGetService[*MockService](kernel, "panic-service")
@@ -458,18 +458,18 @@ func TestMustGetService(t *testing.T) {
 func TestServiceLifecycle(t *testing.T) {
 	t.Run("服务启动和关闭", func(t *testing.T) {
 		svc := NewMockService("lifecycle-service")
-		
+
 		// 初始状态
 		assert.False(t, svc.IsBooted())
 		assert.False(t, svc.IsClosed())
-		
+
 		// 启动服务
 		ctx := context.Background()
 		err := svc.Boot(ctx)
 		require.NoError(t, err)
 		assert.True(t, svc.IsBooted())
 		assert.False(t, svc.IsClosed())
-		
+
 		// 关闭服务
 		err = svc.Close(ctx)
 		require.NoError(t, err)
@@ -481,7 +481,7 @@ func TestServiceLifecycle(t *testing.T) {
 		svc := NewMockService("fail-boot")
 		bootErr := errors.New("boot failed")
 		svc.SetBootError(bootErr)
-		
+
 		ctx := context.Background()
 		err := svc.Boot(ctx)
 		assert.Error(t, err)
@@ -493,7 +493,7 @@ func TestServiceLifecycle(t *testing.T) {
 		svc := NewMockService("fail-close")
 		closeErr := errors.New("close failed")
 		svc.SetCloseError(closeErr)
-		
+
 		ctx := context.Background()
 		err := svc.Close(ctx)
 		assert.Error(t, err)
@@ -506,19 +506,19 @@ func TestServiceLifecycle(t *testing.T) {
 func TestRunnerLifecycle(t *testing.T) {
 	t.Run("运行器正常执行", func(t *testing.T) {
 		runner := NewMockRunner("test-runner")
-		
+
 		// 初始状态
 		assert.Equal(t, 0, runner.RunCount())
-		
+
 		// 启动运行器
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
-		
+
 		done := make(chan error, 1)
 		go func() {
 			done <- runner.Run(ctx)
 		}()
-		
+
 		// 等待超时
 		select {
 		case err := <-done:
@@ -527,7 +527,7 @@ func TestRunnerLifecycle(t *testing.T) {
 		case <-time.After(200 * time.Millisecond):
 			t.Fatal("运行器应该在超时后返回")
 		}
-		
+
 		assert.Equal(t, 1, runner.RunCount())
 	})
 
@@ -535,7 +535,7 @@ func TestRunnerLifecycle(t *testing.T) {
 		runner := NewMockRunner("fail-runner")
 		runErr := errors.New("run failed")
 		runner.SetRunError(runErr)
-		
+
 		ctx := context.Background()
 		err := runner.Run(ctx)
 		assert.Error(t, err)
@@ -547,20 +547,20 @@ func TestRunnerLifecycle(t *testing.T) {
 // TestContainerOperations 测试容器操作
 func TestContainerOperations(t *testing.T) {
 	container := NewMockContainer()
-	
+
 	t.Run("绑定和获取服务", func(t *testing.T) {
 		svc1 := NewMockService("service1")
 		svc2 := NewMockService("service2")
-		
+
 		// 绑定服务
 		container.Bind("service1", svc1)
 		container.Bind("service2", svc2)
-		
+
 		// 获取服务
 		retrieved1, err := container.Get("service1")
 		require.NoError(t, err)
 		assert.Equal(t, svc1, retrieved1)
-		
+
 		retrieved2, err := container.Get("service2")
 		require.NoError(t, err)
 		assert.Equal(t, svc2, retrieved2)
@@ -569,13 +569,13 @@ func TestContainerOperations(t *testing.T) {
 	t.Run("覆盖已存在的服务", func(t *testing.T) {
 		svc1 := NewMockService("original")
 		svc2 := NewMockService("replacement")
-		
+
 		// 绑定第一个服务
 		container.Bind("test", svc1)
 		retrieved, err := container.Get("test")
 		require.NoError(t, err)
 		assert.Equal(t, svc1, retrieved)
-		
+
 		// 覆盖服务
 		container.Bind("test", svc2)
 		retrieved, err = container.Get("test")
@@ -586,7 +586,7 @@ func TestContainerOperations(t *testing.T) {
 	t.Run("MustGet 成功", func(t *testing.T) {
 		svc := NewMockService("must-get")
 		container.Bind("must-get", svc)
-		
+
 		retrieved := container.MustGet("must-get")
 		assert.Equal(t, svc, retrieved)
 	})
@@ -600,21 +600,21 @@ func TestContainerOperations(t *testing.T) {
 	t.Run("Services 和 Names 方法", func(t *testing.T) {
 		// 清空容器
 		container = NewMockContainer()
-		
+
 		svc1 := NewMockService("svc1")
 		svc2 := NewMockService("svc2")
 		svc3 := NewMockService("svc3")
-		
+
 		container.Bind("svc1", svc1)
 		container.Bind("svc2", svc2)
 		container.Bind("svc3", svc3)
-		
+
 		services := container.Services()
 		names := container.Names()
-		
+
 		assert.Len(t, services, 3)
 		assert.Len(t, names, 3)
-		
+
 		// 验证包含所有名称
 		nameSet := make(map[string]bool)
 		for _, name := range names {
@@ -631,10 +631,10 @@ func TestErrorHandling(t *testing.T) {
 	t.Run("服务类型错误消息格式", func(t *testing.T) {
 		kernel := NewMockKernel()
 		container := kernel.GetMockContainer()
-		
+
 		svc := NewMockService("test-service")
 		container.Bind("test-service", svc)
-		
+
 		_, err := GetService[*MockRunner](kernel, "test-service")
 		assert.Error(t, err)
 		assert.True(t, IsServiceType(err))
@@ -643,7 +643,7 @@ func TestErrorHandling(t *testing.T) {
 
 	t.Run("服务未找到错误", func(t *testing.T) {
 		kernel := NewMockKernel()
-		
+
 		_, err := GetService[*MockService](kernel, "missing")
 		assert.Error(t, err)
 		assert.True(t, IsServiceNotFound(err))
@@ -654,21 +654,21 @@ func TestErrorHandling(t *testing.T) {
 func BenchmarkGetService(b *testing.B) {
 	kernel := NewMockKernel()
 	container := kernel.GetMockContainer()
-	
+
 	// 预注册一些服务
 	for i := 0; i < 100; i++ {
 		svc := NewMockService(fmt.Sprintf("service-%d", i))
 		container.Bind(fmt.Sprintf("service-%d", i), svc)
 	}
-	
+
 	b.ResetTimer()
-	
+
 	b.Run("正常获取", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, _ = GetService[*MockService](kernel, "service-50")
 		}
 	})
-	
+
 	b.Run("类型不匹配", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, _ = GetService[*MockRunner](kernel, "service-50")
@@ -680,12 +680,12 @@ func BenchmarkGetService(b *testing.B) {
 func BenchmarkMustGetService(b *testing.B) {
 	kernel := NewMockKernel()
 	container := kernel.GetMockContainer()
-	
+
 	svc := NewMockService("benchmark-service")
 	container.Bind("benchmark-service", svc)
-	
+
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		_ = MustGetService[*MockService](kernel, "benchmark-service")
 	}

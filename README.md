@@ -32,8 +32,37 @@ Drugo 是一个基于 Go 语言的轻量级应用程序框架，专注于提供*
 
 ## 安装
 
+### 安装框架库
+
 ```bash
 go get github.com/qq1060656096/drugo
+```
+
+### 快速使用（安装 CLI 工具）
+
+```bash
+go install github.com/qq1060656096/drugo/cmd/drugo@latest
+```
+
+安装完成后，可以使用 `drugo` 命令快速创建项目：
+
+```bash
+# 创建新项目
+drugo new myapp
+
+# 进入项目目录
+cd myapp
+
+# 安装依赖
+go mod tidy
+
+# 运行项目
+make run
+
+# 创建新模块
+drugo new module user
+
+
 ```
 
 **要求**：Go 1.25.0 或更高版本

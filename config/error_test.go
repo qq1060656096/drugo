@@ -288,7 +288,7 @@ func TestErrorFunctions_RealWorldScenarios(t *testing.T) {
 		t.Run(scenario.name, func(t *testing.T) {
 			err := scenario.operation()
 			require.NotNil(t, err, "操作应该返回错误")
-			
+
 			result := scenario.expectFunc(err)
 			assert.Equal(t, scenario.expectTrue, result, scenario.description)
 		})
@@ -302,7 +302,7 @@ func TestErrorFunctions_ConcurrentAccess(t *testing.T) {
 
 	// 测试 IsNotFound 的并发安全性
 	done := make(chan bool, numGoroutines)
-	
+
 	for i := 0; i < numGoroutines; i++ {
 		go func(id int) {
 			for j := 0; j < numIterations; j++ {

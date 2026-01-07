@@ -307,7 +307,7 @@ func TestIsServiceType(t *testing.T) {
 // TestError_Struct 测试 Error 结构体
 func TestError_Struct(t *testing.T) {
 	originalErr := errors.New("原始错误")
-	
+
 	// 创建新的内核错误
 	kernelErr := &Error{
 		op:  "service.init",

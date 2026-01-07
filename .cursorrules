@@ -1,0 +1,370 @@
+# Drugo 框架项目规则
+
+## 项目概述
+
+Drugo 是一个轻量级、模块化的 Go 应用程序框架，提供服务容器、生命周期管理、配置管理和日志管理等核心能力。
+
+## 技术栈
+
+- **语言**: Go 1.25.0+（必须使用泛型特性）
+- **核心依赖**:
+  - gin-gonic/gin - HTTP Web 框架
+  - spf13/viper - 配置管理
+  - uber-go/zap - 结构化日志
+  - spf13/cobra - CLI 工具
+  - golang.org/x/sync/errgroup - 并发错误处理
+
+## 代码风格与规范
+
+### 通用规范
+
+1. **严格遵循 Go 官方代码规范**
+   - 使用 `gofmt` 格式化代码
+   - 遵循 [Effective Go](https://golang.org/doc/effective_go.html)
+   - 使用 `golangci-lint` 进行静态检查
+
+2. **命名规范**
+   - 包名：小写，单个词，无下划线或驼峰
+   - 接口：优先使用动词或名词，如 `Service`, `Runner`, `Container`
+   - 函数：驼峰命名，导出函数首字母大写
+   - 变量：驼峰命名，缩略词保持一致（如 `ID` 而非 `Id`）
+   - 常量：驼峰命名或全大写（导出常量推荐首字母大写驼峰）
+
+3. **注释规范**
+   - 所有导出的类型、函数、常量必须有文档注释
+   - 注释应以被描述对象的名称开头
+   - 包注释写在包声明之前，描述包的用途
+   - 复杂逻辑必须添加行内注释
+
+### 项目特定规范
+
+#### 1. 接口设计
+
+- **核心接口定义在 `kernel/` 包**
+  - `kernel.Kernel` - 框架内核接口
+  - `kernel.Service` - 基础服务接口（Boot + Close）
+  - `kernel.Runner` - 运行服务接口（扩展 Service，增加 Run 方法）
+  - `kernel.Container` - 容器接口（使用泛型）
+
+- **接口实现规范**
+  ```go
+  // 使用类型断言确保实现
+  var _ kernel.Service = (*MyService)(nil)
+  var _ kernel.Runner = (*MyRunner)(nil)
+  ```
+
+#### 2. 服务开发
+
+- **服务必须实现 `kernel.Service` 接口**
+  ```go
+  type Service interface {
+      Name() string                    // 服务名称（必须唯一）
+      Boot(ctx context.Context) error  // 初始化阶段
+      Close(ctx context.Context) error // 关闭阶段
+  }
+  ```
+
+- **长驻服务额外实现 `kernel.Runner` 接口**
+  ```go
+  type Runner interface {
+      Service
+      Run(ctx context.Context) error   // 阻塞运行，直到 ctx 取消
+  }
+  ```
+
+- **服务构造函数规范**
+  - 使用 `New()` 或 `NewXxx()` 命名
+  - 返回具体类型指针（便于类型断言）
+  - 不在构造函数中执行复杂初始化，留给 `Boot()` 方法
+
+#### 3. 上下文使用
+
+- **Kernel 注入上下文**
+  ```go
+  ctx = kernel.WithContext(ctx, d)
+  k := kernel.MustFromContext(ctx)
+  ```
+
+- **服务从上下文获取依赖**
+  ```go
+  func (s *MyService) Boot(ctx context.Context) error {
+      k := kernel.MustFromContext(ctx)
+      cfg := k.Config().MustGet(s.Name())
+      logger := k.Logger().MustGet(s.Name())
+      // ...
+  }
+  ```
+
+- **避免在 goroutine 中直接使用父 context**，应使用 `context.WithCancel` 创建子上下文
+
+#### 4. 错误处理
+
+- **错误定义**
+  - 使用 `errors.New()` 或 `fmt.Errorf()` 创建错误
+  - 自定义错误类型放在 `error.go` 文件中
+  - 使用 `%w` 包装错误以支持 `errors.Is()` 和 `errors.As()`
+
+- **错误返回规范**
+  - 服务方法失败时必须返回 error
+  - 使用 `Must*` 前缀的函数在失败时 panic（仅限启动阶段）
+  - 日志记录错误后仍需返回 error，不要吞掉错误
+
+#### 5. 配置管理
+
+- **配置文件组织**
+  - 默认目录：`<root>/conf/`
+  - 按业务名称分文件：`gin.yaml`, `log.yaml`, `database.yaml`
+  - 使用 YAML 格式
+
+- **配置获取规范**
+  ```go
+  // 获取配置
+  cfg, err := k.Config().Get("servicename")
+  if err != nil {
+      return err
+  }
+  
+  // 解析到结构体
+  var config MyConfig
+  if err := cfg.Unmarshal(&config); err != nil {
+      return err
+  }
+  ```
+
+#### 6. 日志管理
+
+- **日志使用规范**
+  ```go
+  logger := k.Logger().MustGet("servicename")
+  
+  // 使用结构化字段，不拼接字符串
+  logger.Info("message", 
+      zap.String("key", value),
+      zap.Int("count", 10),
+  )
+  
+  // 错误日志必须带 zap.Error(err)
+  logger.Error("operation failed",
+      zap.String("service", s.Name()),
+      zap.Error(err),
+  )
+  ```
+
+- **日志级别使用**
+  - Debug: 开发调试信息
+  - Info: 正常运行日志（服务启动、关闭、关键操作）
+  - Warn: 警告信息（可恢复错误、降级场景）
+  - Error: 错误信息（影响功能但不崩溃）
+  - Fatal/Panic: 严重错误（应用无法继续运行）
+
+#### 7. 生命周期管理
+
+- **启动顺序**: Boot → Run → Shutdown
+- **Boot 阶段**：按注册顺序初始化
+- **Run 阶段**：并发启动所有 Runner，使用 `errgroup`
+- **Shutdown 阶段**：逆序关闭，带超时控制
+
+- **优雅停机规范**
+  ```go
+  func (s *MyService) Run(ctx context.Context) error {
+      for {
+          select {
+          case <-ctx.Done():
+              return nil  // 正常退出
+          default:
+              // 业务逻辑
+          }
+      }
+  }
+  ```
+
+#### 8. 泛型使用
+
+- **容器使用泛型约束**
+  ```go
+  type Container[T Service] interface {
+      Bind(name string, service T)
+      Get(name string) (T, error)
+  }
+  ```
+
+- **类型安全的服务获取**
+  ```go
+  ginSvc := drugo.MustGetService[*ginsrv.GinService](app, "gin")
+  ```
+
+#### 9. 测试规范
+
+- **测试文件命名**: `*_test.go`
+- **测试函数命名**: `TestXxx(t *testing.T)` 或 `BenchmarkXxx(b *testing.B)`
+- **使用 testify 断言库**
+  ```go
+  import "github.com/stretchr/testify/assert"
+  
+  assert.NoError(t, err)
+  assert.Equal(t, expected, actual)
+  ```
+
+- **测试覆盖要求**
+  - 核心包（kernel/, drugo/, config/, log/）: 80%+
+  - Provider 包: 70%+
+  - 工具包: 60%+
+
+#### 10. Options 模式
+
+- **配置选项使用 Options 模式**
+  ```go
+  type Option func(*options)
+  
+  func WithService(s kernel.Service) Option {
+      return func(o *options) {
+          // ...
+      }
+  }
+  
+  // 使用
+  app := drugo.MustNewApp(
+      drugo.WithRoot(root),
+      drugo.WithService(svc),
+  )
+  ```
+
+## 目录结构规范
+
+```
+drugo/
+├── kernel/          # 核心接口定义（不依赖其他包）
+├── drugo/           # 框架核心实现
+├── config/          # 配置管理实现
+├── log/             # 日志管理实现
+├── provider/        # 内置服务提供者（可选依赖）
+├── pkg/             # 工具包（独立可用）
+├── cmd/             # CLI 工具
+└── bin/             # 编译产物（不提交）
+```
+
+- **依赖方向**: provider → drugo → kernel
+- **包职责**:
+  - `kernel/`: 定义接口契约，无外部依赖
+  - `drugo/`: 实现 Kernel 接口和容器
+  - `config/`, `log/`: 独立可用的管理器
+  - `provider/`: 可选的服务实现
+  - `pkg/`: 通用工具函数
+
+## Provider 开发规范
+
+1. **每个 provider 是独立的目录**
+2. **必须导出 `New()` 构造函数**
+3. **配置结构体命名**: `Config`
+4. **服务名称常量**: 使用 `const Name = "xxx"` 或 `Name()` 方法
+5. **配置文件名称**: 与服务名称一致（如 `gin.yaml`）
+
+示例：
+```go
+package ginsrv
+
+const Name = "gin"
+
+type GinService struct {
+    name   string
+    config Config
+    engine *gin.Engine
+}
+
+func (s *GinService) Name() string { return s.name }
+
+func (s *GinService) Boot(ctx context.Context) error {
+    // 从上下文获取配置和日志
+    k := kernel.MustFromContext(ctx)
+    cfg := k.Config().MustGet(s.Name())
+    // ...
+}
+
+func New() *GinService {
+    return &GinService{name: Name}
+}
+```
+
+## CLI 工具规范（cmd/drugo）
+
+- 使用 Cobra 框架
+- 命令结构:
+  ```
+  drugo new <project-name>    # 创建新项目
+  drugo new module <name>     # 创建新模块
+  ```
+- 模板文件放在 `internal/tpl/`
+- 使用 `text/template` 生成代码
+
+## Git 提交规范
+
+- **提交信息格式**: `<type>(<scope>): <subject>`
+- **类型**:
+  - feat: 新功能
+  - fix: 修复 bug
+  - docs: 文档更新
+  - style: 代码格式（不影响功能）
+  - refactor: 重构
+  - test: 测试相关
+  - chore: 构建/工具链
+- **示例**: `feat(kernel): add context helper functions`
+
+## Makefile 使用
+
+- `make test` - 运行测试
+- `make testa` - 运行测试（带竞态检测）
+- `make cover` - 测试覆盖率报告
+- `make build` - 编译 CLI 工具
+
+## 重要约定
+
+1. **不使用全局变量存储状态**（除注册表如 `router.Default()`）
+2. **优先使用接口而非具体类型**
+3. **公开 API 必须稳定**，内部 API 可以 `internal/` 包
+4. **向后兼容**：避免破坏性变更
+5. **性能关键路径避免反射**
+6. **并发安全**：共享状态必须加锁或使用 channel
+
+## 代码审查要点
+
+- [ ] 是否实现了必要的接口
+- [ ] 是否正确处理了错误
+- [ ] 是否添加了日志记录
+- [ ] 是否有单元测试
+- [ ] 是否有文档注释
+- [ ] 是否存在并发安全问题
+- [ ] 是否优雅处理了 context 取消
+- [ ] 是否遵循了项目命名规范
+
+## 性能优化建议
+
+1. **避免不必要的内存分配**
+2. **使用 sync.Pool 复用对象**（高频场景）
+3. **日志使用 zap.Field 而非字符串拼接**
+4. **合理使用 buffered channel**
+5. **避免在循环中创建 goroutine**
+
+## 常见陷阱
+
+1. **不要在 Boot 中启动 goroutine**（应该在 Run 中）
+2. **不要忽略 context.Done()**
+3. **不要在 Close 中执行耗时操作**（有超时限制）
+4. **不要直接 panic**（除非在 `Must*` 函数中）
+5. **不要在 Service 间形成循环依赖**
+
+## 文档维护
+
+- 核心包必须有 `README.md`（config/, log/）
+- 公开 API 变更必须更新主 README
+- 复杂设计需要补充架构文档
+- 示例代码必须可运行且及时更新
+
+## AI 助手协作提示
+
+当使用 AI 助手（如 Cursor）进行开发时：
+
+1. **明确说明是在修改 kernel 接口还是实现**
+2. **提供完整的上下文**（如当前在哪个包工作）
+3. **遵循现有代码风格**（参考同包内其他文件）
+4. **优先扩展而非修改核心接口**
+5. **重大变更前先讨论设计方案**
