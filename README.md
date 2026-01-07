@@ -70,29 +70,55 @@ myapp/
 package main
 
 import (
-    "context"
-    "os"
+	"context"
+	"os"
 
-    "github.com/qq1060656096/drugo/drugo"
-    "github.com/qq1060656096/drugo/pkg/gomod"
-    "github.com/qq1060656096/drugo/provider/ginsrv"
+	"github.com/gin-gonic/gin"
+	"github.com/qq1060656096/drugo/drugo"
+	"github.com/qq1060656096/drugo/pkg/gomod"
+	"github.com/qq1060656096/drugo/pkg/router"
+	"github.com/qq1060656096/drugo/provider/demo"
+	"github.com/qq1060656096/drugo/provider/ginsrv"
+	"go.uber.org/zap"
 )
 
 func main() {
-    // 获取项目根目录
-    wd, _ := os.Getwd()
-    root := gomod.GmodRoot(wd)
-    
-    // 创建应用实例
-    app := drugo.MustNewApp(
-        drugo.WithRoot(root),
-        drugo.WithService(ginsrv.New()),
-    )
+	wd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	root := gomod.GmodRoot(wd)
+	ctx := context.Background()
 
-    // 启动应用（包含 Boot → Run → Shutdown 完整生命周期）
-    if err := app.Serve(context.Background()); err != nil {
-        panic(err)
-    }
+	// 创建应用
+	app := drugo.MustNewApp(
+		drugo.WithContext(ctx),
+		drugo.WithRoot(root),
+		drugo.WithService(demo.New()),
+		drugo.WithService(ginsrv.New()),
+	)
+
+	// 获取 Gin 服务并添加路由
+	ginSvc := drugo.MustGetService[*ginsrv.GinService](app, "gin")
+	engine := ginSvc.Engine()
+
+	// 手动添加路由
+	router.Default().Register(func(r *gin.Engine) {
+		r.GET("/hello", func(c *gin.Context) {
+			app.Logger().MustGet("gin").Info("hello world",
+				zap.String("url", c.Request.URL.String()),
+			)
+			c.JSON(200, gin.H{"message": "hello world"})
+		})
+	})
+
+	// 设置所有注册的路由
+	router.Default().Setup(engine)
+
+	// 启动应用
+	if err := app.Serve(ctx); err != nil {
+		panic(err)
+	}
 }
 ```
 
