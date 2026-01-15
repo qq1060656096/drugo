@@ -90,7 +90,7 @@ func NewZapLogger(cfg Config, bizName string) (*zap.Logger, zap.AtomicLevel, err
 
 	logger := zap.New(core,
 		zap.AddCaller(),
-		zap.AddCallerSkip(1),                   // 跳过一层调用栈，显示正确的调用位置
+		zap.AddCallerSkip(0),                   // 跳过一层调用栈，显示正确的调用位置
 		zap.Fields(zap.String("biz", bizName)), // 添加业务名称字段
 	)
 
