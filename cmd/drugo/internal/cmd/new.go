@@ -126,6 +126,8 @@ func createProject(name, modPath string) error {
 		filepath.Join(name, "cmd", "app", "main.go"):       tpl.MainGoTpl,
 		filepath.Join(name, "conf", "gin.yaml"):            tpl.GinYamlTpl,
 		filepath.Join(name, "conf", "log.yaml"):            tpl.LogYamlTpl,
+		filepath.Join(name, "conf", "db.yaml"):             tpl.DbYamlTpl,
+		filepath.Join(name, "conf", "redis.yaml"):          tpl.RedisYamlTpl,
 		filepath.Join(name, "go.mod"):                      tpl.GoModTpl,
 		filepath.Join(name, "Makefile"):                    tpl.MakefileTpl,
 		filepath.Join(name, ".gitignore"):                  tpl.GitignoreTpl,

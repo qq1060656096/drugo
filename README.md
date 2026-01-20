@@ -106,8 +106,7 @@ import (
 	"github.com/qq1060656096/drugo/drugo"
 	"github.com/qq1060656096/drugo/pkg/gomod"
 	"github.com/qq1060656096/drugo/pkg/router"
-	"github.com/qq1060656096/drugo/provider/demo"
-	"github.com/qq1060656096/drugo/provider/ginsrv"
+	"github.com/qq1060656096/drugo-provider/ginsrv"
 	"go.uber.org/zap"
 )
 
@@ -123,7 +122,6 @@ func main() {
 	app := drugo.MustNewApp(
 		drugo.WithContext(ctx),
 		drugo.WithRoot(root),
-		drugo.WithService(demo.New()),
 		drugo.WithService(ginsrv.New()),
 	)
 
@@ -395,7 +393,7 @@ logger.SetLevel("app", "debug")
 - 优雅停机
 
 ```go
-import "github.com/qq1060656096/drugo/provider/ginsrv"
+import "github.com/qq1060656096/drugo-provider/ginsrv"
 
 // 创建并注册 Gin 服务
 app := drugo.MustNewApp(
@@ -535,8 +533,7 @@ import (
     "github.com/qq1060656096/drugo/drugo"
     "github.com/qq1060656096/drugo/pkg/gomod"
     "github.com/qq1060656096/drugo/pkg/router"
-    "github.com/qq1060656096/drugo/provider/demo"
-    "github.com/qq1060656096/drugo/provider/ginsrv"
+    "github.com/qq1060656096/drugo-provider/ginsrv"
     "go.uber.org/zap"
 
     // 导入模块以触发 init() 自动注册路由
@@ -552,7 +549,6 @@ func main() {
     app := drugo.MustNewApp(
         drugo.WithContext(ctx),
         drugo.WithRoot(root),
-        drugo.WithService(demo.New()),
         drugo.WithService(ginsrv.New()),
     )
     

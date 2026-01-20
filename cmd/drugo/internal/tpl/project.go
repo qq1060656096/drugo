@@ -11,10 +11,14 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	//biapi "github.com/qq1060656096/drugo-provider/biapi/api"
+	"github.com/qq1060656096/drugo-provider/dbsvc"
+	"github.com/qq1060656096/drugo-provider/ginsrv"
+	"github.com/qq1060656096/drugo-provider/redissvc"
+
 	"github.com/qq1060656096/drugo/drugo"
 	"github.com/qq1060656096/drugo/pkg/gomod"
 	"github.com/qq1060656096/drugo/pkg/router"
-	"github.com/qq1060656096/drugo/provider/ginsrv"
 	"go.uber.org/zap"
 )
 
@@ -29,21 +33,25 @@ func main() {
 		drugo.WithContext(ctx),
 		drugo.WithRoot(root),
 		drugo.WithService(ginsrv.New()),
+		drugo.WithService(dbsvc.New()),
+		drugo.WithService(redissvc.New()),
 	)
+	drugo.SetApp(app)
+	//biapi.Init("public", "test_common")
 	ginService := drugo.MustGetService[*ginsrv.GinService](app, "gin")
 	engine := ginService.Engine()
 
 	// 示例路由
 	router.Default().Register(func(r *gin.Engine) {
 		r.GET("/health", func(c *gin.Context) {
+			app.Logger().MustGet("gin").Info("health", zap.String("url", c.Request.URL.String()))
 			c.JSON(200, gin.H{"status": "ok"})
 		})
-		r.GET("/hello", func(c *gin.Context) {
-			app.Logger().MustGet("gin").Info("hello world", zap.String("url", c.Request.URL.String()))
-			c.JSON(200, gin.H{"message": "hello world"})
-		})
 	})
-
+	engine.Use(func(c *gin.Context) {
+		c.Set(drugo.Name, app)
+		c.Next()
+	})
 	// 自动注册所有模块路由
 	router.Default().Setup(engine)
 
@@ -184,6 +192,123 @@ go.work.sum
 
 # Runtime
 runtime/logs/*.log
+`
+
+const DbYamlTpl = `db:
+  # =========================
+  # 公共组（默认组）
+  # 用途：系统基础数据、公共表、测试环境等
+  # =========================
+  public:
+    test_common:
+      # 数据库实例名称（用于注册表/日志/监控标识）
+      name: "test_common"
+      # 数据库连接 DSN
+      # 格式: user:password@protocol(address)/dbname?params
+      dsn: "root:123456@tcp(172.16.123.1:3306)/test_common?charset=utf8mb4&parseTime=true"
+      # 数据库类型
+      # 支持 mysql、postgres、sqlite、sqlserver 等
+      driver_type: "mysql"
+      # 最大空闲连接数
+      max_idle_conns: 10
+      # 最大打开连接数
+      max_open_conns: 100
+      # 连接最大生命周期（秒）
+      # 超过时间连接会被回收
+      conn_max_lifetime: 3600
+
+
+  # =========================
+  # 业务组
+  # 用途：各业务模块独立数据库
+  # 例如：订单库、用户库、日志库等
+  # =========================
+  business:
+    # 业务库 1
+    test_data_1:
+      # 数据库实例名称（用于注册表/日志/监控标识）
+      name: "test_data_1"
+      # 数据库连接 DSN
+      # 格式: user:password@protocol(address)/dbname?params
+      dsn: "root:123456@tcp(172.16.123.1:3306)/test_data_1?charset=utf8mb4&parseTime=true"
+      # 数据库类型
+      # 支持 mysql、postgres、sqlite、sqlserver 等
+      driver_type: "mysql"
+      # 最大空闲连接数
+      max_idle_conns: 10
+      # 最大打开连接数
+      max_open_conns: 100
+      # 连接最大生命周期（秒）
+      # 超过时间连接会被回收
+      conn_max_lifetime: 3600
+`
+
+const RedisYamlTpl = `redis:
+  # =========================
+  # 会话缓存 Redis 实例
+  # 用途：用户登录态、Session、Token 等短生命周期数据
+  # =========================
+  session:
+    # 实例名称（用于注册表 / 日志 / 监控标识）
+    name: "session"
+    # Redis 部署模式
+    # standalone | sentinel | cluster
+    mode: "standalone"
+    # Redis 地址
+    # standalone: host:port
+    # sentinel/cluster: 多地址用逗号分隔
+    addr: "localhost:6379"
+    # Redis 访问密码（无密码留空）
+    password: ""
+    # 使用的 Redis DB 编号
+    # 建议不同业务使用不同 DB 隔离
+    db: 0
+    # 连接池最大连接数
+    pool_size: 10
+    # 连接池最小空闲连接数
+    min_idle_conns: 5
+    # 连接池最大空闲连接数
+    max_idle_conns: 10
+    # 建立连接超时时间
+    dial_timeout: 5s
+    # 读超时时间（避免阻塞）
+    read_timeout: 3s
+    # 写超时时间
+    write_timeout: 3s
+    # 从连接池获取连接的最大等待时间
+    pool_timeout: 4s
+
+
+  # =========================
+  # 购物车缓存 Redis 实例
+  # 用途：购物车、临时订单、用户操作状态
+  # 特点：读写频繁、并发高
+  # =========================
+  cart:
+    # 实例名称
+    name: "cart"
+    # Redis 部署模式
+    mode: "standalone"
+    # Redis 地址
+    addr: "localhost:6379"
+    # Redis 访问密码
+    password: ""
+    # 使用独立 DB，避免与 session 数据混用
+    db: 1
+    # 更大的连接池，支撑高并发读写
+    pool_size: 20
+    # 最小空闲连接数
+    min_idle_conns: 10
+    # 最大空闲连接数
+    max_idle_conns: 20
+    # 连接超时时间
+    dial_timeout: 5s
+    # 读超时时间
+    read_timeout: 3s
+    # 写超时时间
+    write_timeout: 3s
+    # 连接池等待超时时间
+    pool_timeout: 4s
 `
 
 const ReadmeTpl = `# {{.Name}}
