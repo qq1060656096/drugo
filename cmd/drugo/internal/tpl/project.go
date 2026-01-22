@@ -116,9 +116,15 @@ MAIN_FILE := cmd/app/main.go
 # 默认目标
 .DEFAULT_GOAL := help
 
+AIR_PKG := github.com/air-verse/air@latest
+
 ## run: 运行应用
 run:
-	go run $(MAIN_FILE)
+	@command -v air >/dev/null 2>&1 || { \
+    		echo "🔧 air 未安装，正在安装..."; \
+    		go install $(AIR_PKG); \
+    	}
+	air
 
 ## build: 编译应用
 build:
