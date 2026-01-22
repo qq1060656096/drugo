@@ -99,7 +99,7 @@ go 1.25.0
 
 require (
 	github.com/gin-gonic/gin v1.11.0
-	github.com/qq1060656096/drugo latest
+	github.com/qq1060656096/drugo v0.0.2
 	go.uber.org/zap v1.27.1
 )
 `
@@ -379,4 +379,48 @@ drugo new module user
 ## License
 
 MIT
+`
+const AirTomlTpl = `# 项目根目录，"." 表示当前目录
+root = "."
+
+# Air 编译后的临时文件目录
+tmp_dir = "bin"
+
+[build]
+  # 🔴 最关键的一行
+  # 编译命令
+  # -o ./bin/app   → 编译后的二进制文件路径
+  # ./cmd/server   → main.go 所在目录（不是文件）
+  cmd = "go build -o ./bin/app ./cmd/app"
+
+  # 运行的二进制文件
+  bin = "bin/app"
+
+  # 文件变更后，延迟多少毫秒再重启（防止频繁抖动）
+  delay = 1000
+
+  # 监听的文件后缀
+  # 只要这些文件变化就会触发重启
+  include_ext = ["go", "tpl", "tmpl", "html"]
+
+  # 排除监听的目录
+  # tmp：Air 输出目录，必须排除
+  # vendor：依赖
+  # node_modules：前端依赖
+  exclude_dir = ["tmp", "vendor", "node_modules"]
+
+  # 编译失败时是否停止运行
+  # true = 有编译错误就不重启（推荐）
+  stop_on_error = true
+
+[log]
+  # 日志是否显示时间
+  time = true
+
+[color]
+  # Air 各阶段日志颜色（纯视觉效果）
+  main = "cyan"      # Air 主进程
+  watcher = "yellow" # 文件监听
+  build = "green"    # 编译阶段
+  runner = "magenta" # 程序运行
 `

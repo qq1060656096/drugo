@@ -132,6 +132,7 @@ func createProject(name, modPath string) error {
 		filepath.Join(name, "Makefile"):                    tpl.MakefileTpl,
 		filepath.Join(name, ".gitignore"):                  tpl.GitignoreTpl,
 		filepath.Join(name, "README.md"):                   tpl.ReadmeTpl,
+		filepath.Join(name, ".air.toml"):                   tpl.AirTomlTpl,
 		filepath.Join(name, "runtime", "logs", ".gitkeep"): "",
 	}
 
