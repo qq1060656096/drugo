@@ -4,14 +4,13 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 )
 
-const (
-	// Version is the current version of drugo CLI.
-	Version = "0.1.0"
-)
+// Version is the current version of drugo CLI.
+var Version = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:   "drugo",
@@ -26,7 +25,7 @@ var rootCmd = &cobra.Command{
 示例:
   drugo new myapp                创建一个名为 'myapp' 的新项目
   drugo new module user          创建一个带有 CRUD 模板的 user 模块`,
-	Version: Version,
+	Version: getVersion(),
 }
 
 // Execute runs the root command.
@@ -39,5 +38,14 @@ func init() {
 	rootCmd.SetErr(os.Stderr)
 
 	// Add version template
-	rootCmd.SetVersionTemplate(fmt.Sprintf("drugo version %s\n", Version))
+	rootCmd.SetVersionTemplate(fmt.Sprintf("drugo version %s\n", getVersion()))
+}
+
+func getVersion() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "(devel)" {
+			return info.Main.Version
+		}
+	}
+	return Version
 }

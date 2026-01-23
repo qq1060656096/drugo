@@ -267,11 +267,6 @@ drugo/
 │   ├── config.go    # 日志配置
 │   └── log.go       # Zap 日志创建
 │
-├── provider/        # 内置服务提供者
-│   ├── ginsrv/      # Gin HTTP 服务
-│   ├── gormsvc/     # GORM 数据库服务
-│   └── demo/        # 示例服务
-│
 └── pkg/             # 工具包
     ├── router/      # 路由注册表
     └── gomod/       # Go Module 工具
