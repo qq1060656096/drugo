@@ -70,9 +70,9 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("正在创建项目 %q，模块路径为 %q...\n", projectName, modPath)
-
+	version := getVersion()
 	// Create project structure
-	if err := createProject(projectName, modPath); err != nil {
+	if err := createProject(projectName, modPath, version); err != nil {
 		// Clean up on failure
 		os.RemoveAll(projectName)
 		return fmt.Errorf("创建项目失败: %w", err)
@@ -101,10 +101,11 @@ func validateProjectName(name string) error {
 	return nil
 }
 
-func createProject(name, modPath string) error {
+func createProject(name, modPath, version string) error {
 	data := ProjectData{
 		Name:    name,
 		ModPath: modPath,
+		Version: version,
 	}
 
 	// Create directories
@@ -172,4 +173,5 @@ func createFileFromTemplate(path, tplContent string, data any) error {
 type ProjectData struct {
 	Name    string
 	ModPath string
+	Version string
 }
