@@ -408,7 +408,7 @@ tmp_dir = "bin"
 
   # 监听的文件后缀
   # 只要这些文件变化就会触发重启
-  include_ext = ["go", "tpl", "tmpl", "html"]
+  include_ext = ["go", "tpl", "tmpl", "html", "yaml", "yml"]
 
   # 排除监听的目录
   # tmp：Air 输出目录，必须排除
