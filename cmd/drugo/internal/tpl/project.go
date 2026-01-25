@@ -100,7 +100,7 @@ go 1.25.0
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/qq1060656096/drugo {{.Version}}
-	github.com/qq1060656096/drugo-provider v0.0.2
+	github.com/qq1060656096/drugo-provider v0.0.4
 	go.uber.org/zap v1.27.1
 )
 `
@@ -224,7 +224,6 @@ const DbYamlTpl = `db:
       # 超过时间连接会被回收
       conn_max_lifetime: 3600
 
-
   # =========================
   # 业务组
   # 用途：各业务模块独立数据库
@@ -235,12 +234,32 @@ const DbYamlTpl = `db:
     test_data_1:
       # 数据库实例名称（用于注册表/日志/监控标识）
       name: "test_data_1"
-      # 数据库连接 DSN
-      # 格式: user:password@protocol(address)/dbname?params
-      dsn: "root:123456@tcp(172.16.123.1:3306)/test_data_1?charset=utf8mb4&parseTime=true"
-      # 数据库类型
-      # 支持 mysql、postgres、sqlite、sqlserver 等
       driver_type: "mysql"
+      host: "172.16.123.1"
+      port: 3306
+      user: "root"
+      password: "123456"
+      db_name: "test_data_1"
+      charset: "utf8mb4"  # 可选，默认 utf8mb4
+      # 最大空闲连接数
+      max_idle_conns: 10
+      # 最大打开连接数
+      max_open_conns: 100
+      # 连接最大生命周期（秒）
+      # 超过时间连接会被回收
+      conn_max_lifetime: 3600
+
+    # 业务库 1
+    test_data_2:
+      # 数据库实例名称（用于注册表/日志/监控标识）
+      name: "test_data_2"
+      driver_type: "mysql"
+      host: "172.16.123.1"
+      port: 3306
+      user: "root"
+      password: "123456"
+      db_name: "test_data_2"
+      charset: "utf8mb4"  # 可选，默认 utf8mb4
       # 最大空闲连接数
       max_idle_conns: 10
       # 最大打开连接数
