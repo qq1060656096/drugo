@@ -100,7 +100,7 @@ go 1.25.0
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/qq1060656096/drugo {{.Version}}
-	github.com/qq1060656096/drugo-provider v0.0.4
+	github.com/qq1060656096/drugo-provider v0.0.5
 	go.uber.org/zap v1.27.1
 )
 `
@@ -203,73 +203,111 @@ runtime/logs/*.log
 
 const DbYamlTpl = `db:
   # =========================
-  # 公共组（默认组）
-  # 用途：系统基础数据、公共表、测试环境等
+  # 默认数据库组
+  # 用途：
+  # - 非 SaaS / 单库模式
+  # - 简单项目或只有一个业务数据库的场景
+  # =========================
+  default:
+    # 默认数据库实例
+    default:
+      # 数据库实例标识
+      # 用于 DB 注册、日志、监控等（非 db_name）
+      name: "default"
+      # 支持：mysql、postgres、sqlite、sqlserver 等
+      driver_type: "mysql"
+      host: "172.16.123.1"
+      port: 3306
+      user: "root"
+      password: "123456"
+      # 实际使用的数据库名
+      db_name: "sys"
+      # 字符集（可选，默认 utf8mb4）
+      charset: "utf8mb4"
+      # 最大空闲连接数
+      max_idle_conns: 10
+      # 最大打开连接数
+      max_open_conns: 100
+      # 连接最大生命周期（秒）
+      # 超过该时间的连接会被回收
+      conn_max_lifetime: 3600
+
+  # =========================
+  # 公共数据库组
+  # 用途：
+  # - 公共表
+  # - 基础数据
+  # - 多业务共享数据
   # =========================
   public:
-    test_common:
-      # 数据库实例名称（用于注册表/日志/监控标识）
-      name: "test_common"
-      # 数据库连接 DSN
-      # 格式: user:password@protocol(address)/dbname?params
-      dsn: "root:123456@tcp(172.16.123.1:3306)/test_common?charset=utf8mb4&parseTime=true"
+    # 默认公共库实例
+    default:
+      # 数据库实例标识
+      name: "default"
       # 数据库类型
-      # 支持 mysql、postgres、sqlite、sqlserver 等
+      # 支持：mysql、postgres、sqlite、sqlserver 等
       driver_type: "mysql"
+      host: "172.16.123.1"
+      port: 3306
+      user: "root"
+      password: "123456"
+      # 实际业务数据库名
+      db_name: "test_common"
+      charset: "utf8mb4"
       # 最大空闲连接数
       max_idle_conns: 10
       # 最大打开连接数
       max_open_conns: 100
       # 连接最大生命周期（秒）
-      # 超过时间连接会被回收
       conn_max_lifetime: 3600
 
   # =========================
-  # 业务组
-  # 用途：各业务模块独立数据库
-  # 例如：订单库、用户库、日志库等
+  # 业务数据库组
+  # 用途：
+  # - 多业务 / 多租户场景
+  # - 每个业务可映射到不同数据库
   # =========================
   business:
-    # 业务库 1
-    test_data_1:
-      # 数据库实例名称（用于注册表/日志/监控标识）
-      name: "test_data_1"
+    # 默认业务库实例（可扩展为 data_1 / data_2 / data_n）
+    default:
+      # 数据库实例标识
+      name: "default"
+      # 支持：mysql、postgres、sqlite、sqlserver 等
       driver_type: "mysql"
       host: "172.16.123.1"
       port: 3306
       user: "root"
       password: "123456"
+      # 实际业务数据库名
       db_name: "test_data_1"
-      charset: "utf8mb4"  # 可选，默认 utf8mb4
-      # 最大空闲连接数
+      charset: "utf8mb4"
       max_idle_conns: 10
-      # 最大打开连接数
       max_open_conns: 100
-      # 连接最大生命周期（秒）
-      # 超过时间连接会被回收
       conn_max_lifetime: 3600
 
-    # 业务库 1
-    test_data_2:
-      # 数据库实例名称（用于注册表/日志/监控标识）
-      name: "test_data_2"
-      driver_type: "mysql"
-      host: "172.16.123.1"
-      port: 3306
-      user: "root"
-      password: "123456"
-      db_name: "test_data_2"
-      charset: "utf8mb4"  # 可选，默认 utf8mb4
-      # 最大空闲连接数
-      max_idle_conns: 10
-      # 最大打开连接数
-      max_open_conns: 100
-      # 连接最大生命周期（秒）
-      # 超过时间连接会被回收
-      conn_max_lifetime: 3600
 `
 
 const RedisYamlTpl = `redis:
+  # =========================
+  # 默认缓存 Redis 实例
+  # 用途：用户登录态、Session、Token 等短生命周期数据
+  # =========================
+  default:
+    # 实例名称（用于注册表 / 日志 / 监控标识）
+    name: "default"
+    # Redis 部署模式
+    # standalone | sentinel | cluster
+    mode: "standalone"
+    # Redis 地址
+    # standalone: host:port
+    # sentinel/cluster: 多地址用逗号分隔
+    addr: "localhost:6379"
+    # Redis 访问密码（无密码留空）
+    password: ""
+    # 使用的 Redis DB 编号
+    # 建议不同业务使用不同 DB 隔离
+    db: 0
+
   # =========================
   # 会话缓存 Redis 实例
   # 用途：用户登录态、Session、Token 等短生命周期数据
@@ -288,21 +326,7 @@ const RedisYamlTpl = `redis:
     password: ""
     # 使用的 Redis DB 编号
     # 建议不同业务使用不同 DB 隔离
-    db: 0
-    # 连接池最大连接数
-    pool_size: 10
-    # 连接池最小空闲连接数
-    min_idle_conns: 5
-    # 连接池最大空闲连接数
-    max_idle_conns: 10
-    # 建立连接超时时间
-    dial_timeout: 5s
-    # 读超时时间（避免阻塞）
-    read_timeout: 3s
-    # 写超时时间
-    write_timeout: 3s
-    # 从连接池获取连接的最大等待时间
-    pool_timeout: 4s
+    db: 1
 
 
   # =========================
@@ -320,21 +344,8 @@ const RedisYamlTpl = `redis:
     # Redis 访问密码
     password: ""
     # 使用独立 DB，避免与 session 数据混用
-    db: 1
-    # 更大的连接池，支撑高并发读写
-    pool_size: 20
-    # 最小空闲连接数
-    min_idle_conns: 10
-    # 最大空闲连接数
-    max_idle_conns: 20
-    # 连接超时时间
-    dial_timeout: 5s
-    # 读超时时间
-    read_timeout: 3s
-    # 写超时时间
-    write_timeout: 3s
-    # 连接池等待超时时间
-    pool_timeout: 4s
+    db: 2
+
 `
 
 const ReadmeTpl = `# {{.Name}}
