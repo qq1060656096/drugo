@@ -100,7 +100,7 @@ go 1.25.0
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/qq1060656096/drugo {{.Version}}
-	github.com/qq1060656096/drugo-provider v0.0.5
+	github.com/qq1060656096/drugo-provider v0.0.6
 	go.uber.org/zap v1.27.1
 )
 `
