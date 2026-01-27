@@ -20,11 +20,13 @@ var rootCmd = &cobra.Command{
 
 用法:
   drugo new <项目名称>           创建一个新的 Drugo 项目
-  drugo new module <模块名称>    在现有项目中创建新模块
+  drugo module new <模块名称>    在现有项目中创建新模块
+  drugo module new-api <模块名称> <API名称> 在现有模块中创建新的 API 结构
 
 示例:
   drugo new myapp                创建一个名为 'myapp' 的新项目
-  drugo new module user          创建一个带有 CRUD 模板的 user 模块`,
+  drugo module new user          创建一个带有 CRUD 模板的 user 模块
+  drugo module new-api user address 在 user 模块中创建 address API`,
 	Version: getVersion(),
 }
 

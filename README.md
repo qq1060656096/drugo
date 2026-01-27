@@ -59,10 +59,11 @@ go mod tidy
 # 运行项目
 make run
 
-# 创建新模块
-drugo new module user
+# 创建新模块 (在项目根目录下)
+drugo module new user
 
-
+# 创建新的 API 结构 (在模块目录下)
+drugo module new-api user address
 ```
 
 **要求**：Go 1.25.0 或更高版本

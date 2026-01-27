@@ -1,22 +1,22 @@
 package tpl
 
-// Module templates for generating CRUD module structure.
+// ModuleApi templates for generating API structure within an existing module.
 
-const ModuleAPITpl = `package api
+const ModuleApiApiTpl = `package api
 
 import (
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"{{.ModPath}}/internal/{{.Name}}/biz"
-	"{{.ModPath}}/internal/{{.Name}}/data"
-	"{{.ModPath}}/internal/{{.Name}}/service"
+	"{{.ModPath}}/internal/{{.ModuleName}}/biz"
+	"{{.ModPath}}/internal/{{.ModuleName}}/data"
+	"{{.ModPath}}/internal/{{.ModuleName}}/service"
 	"github.com/qq1060656096/drugo/pkg/router"
 )
 
 func init() {
-	// 自动注册{{.Name}}模块路由
+	// 自动注册{{.NameTitle}}路由
 	router.Default().Register(func(r *gin.Engine) {
 		api := New{{.NameTitle}}Handler()
 		api.RegisterRoutes(r)
@@ -39,7 +39,7 @@ func New{{.NameTitle}}Handler() *{{.NameTitle}}Handler {
 
 // RegisterRoutes 注册{{.Name}}相关路由
 func (h *{{.NameTitle}}Handler) RegisterRoutes(r gin.IRouter) {
-	group := r.Group("/{{.Name}}/{{.Name}}")
+	group := r.Group("/{{.ModuleName}}/{{.Name}}")
 	{
 		group.POST("", h.Create)
 		group.GET("", h.List)
@@ -63,7 +63,7 @@ func (h *{{.NameTitle}}Handler) Create(c *gin.Context) {
 
 	resp, err := h.svc.Create(c.Request.Context(), &req)
 	if err != nil {
-		handleError(c, err)
+		h.handleError(c, err)
 		return
 	}
 
@@ -88,7 +88,7 @@ func (h *{{.NameTitle}}Handler) Get(c *gin.Context) {
 
 	resp, err := h.svc.Get(c.Request.Context(), id)
 	if err != nil {
-		handleError(c, err)
+		h.handleError(c, err)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (h *{{.NameTitle}}Handler) Update(c *gin.Context) {
 
 	resp, err := h.svc.Update(c.Request.Context(), id, &req)
 	if err != nil {
-		handleError(c, err)
+		h.handleError(c, err)
 		return
 	}
 
@@ -146,7 +146,7 @@ func (h *{{.NameTitle}}Handler) Delete(c *gin.Context) {
 	}
 
 	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-		handleError(c, err)
+		h.handleError(c, err)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (h *{{.NameTitle}}Handler) List(c *gin.Context) {
 
 	resp, err := h.svc.List(c.Request.Context(), &req)
 	if err != nil {
-		handleError(c, err)
+		h.handleError(c, err)
 		return
 	}
 
@@ -182,15 +182,16 @@ func (h *{{.NameTitle}}Handler) List(c *gin.Context) {
 }
 
 // handleError 统一错误处理
-func handleError(c *gin.Context, err error) {
-	if service.IsNotFound(err) {
+// 注意：作为方法挂载在 Handler 上以避免与其他 Handler 的辅助函数冲突
+func (h *{{.NameTitle}}Handler) handleError(c *gin.Context, err error) {
+	if service.Is{{.NameTitle}}NotFound(err) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    404,
 			"message": "not found",
 		})
 		return
 	}
-	if service.IsInvalidParams(err) {
+	if service.Is{{.NameTitle}}InvalidParams(err) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "invalid params",
@@ -204,7 +205,7 @@ func handleError(c *gin.Context, err error) {
 }
 `
 
-const ModuleBizTpl = `package biz
+const ModuleApiBizTpl = `package biz
 
 import (
 	"context"
@@ -214,7 +215,7 @@ import (
 // 业务错误定义
 var (
 	Err{{.NameTitle}}NotFound  = errors.New("{{.Name}} not found")
-	ErrInvalidParams = errors.New("invalid params")
+	Err{{.NameTitle}}InvalidParams = errors.New("invalid params")
 )
 
 // {{.NameTitle}} {{.Name}}实体
@@ -246,7 +247,7 @@ func New{{.NameTitle}}Usecase(repo {{.NameTitle}}Repo) *{{.NameTitle}}Usecase {
 // Create 创建{{.Name}}
 func (uc *{{.NameTitle}}Usecase) Create(ctx context.Context, name string) (*{{.NameTitle}}, error) {
 	if name == "" {
-		return nil, ErrInvalidParams
+		return nil, Err{{.NameTitle}}InvalidParams
 	}
 	entity := &{{.NameTitle}}{
 		Name: name,
@@ -257,7 +258,7 @@ func (uc *{{.NameTitle}}Usecase) Create(ctx context.Context, name string) (*{{.N
 // Get 获取{{.Name}}详情
 func (uc *{{.NameTitle}}Usecase) Get(ctx context.Context, id int64) (*{{.NameTitle}}, error) {
 	if id <= 0 {
-		return nil, ErrInvalidParams
+		return nil, Err{{.NameTitle}}InvalidParams
 	}
 	return uc.repo.Get(ctx, id)
 }
@@ -265,7 +266,7 @@ func (uc *{{.NameTitle}}Usecase) Get(ctx context.Context, id int64) (*{{.NameTit
 // Update 更新{{.Name}}
 func (uc *{{.NameTitle}}Usecase) Update(ctx context.Context, id int64, name string) (*{{.NameTitle}}, error) {
 	if id <= 0 {
-		return nil, ErrInvalidParams
+		return nil, Err{{.NameTitle}}InvalidParams
 	}
 	entity := &{{.NameTitle}}{
 		ID:   id,
@@ -277,7 +278,7 @@ func (uc *{{.NameTitle}}Usecase) Update(ctx context.Context, id int64, name stri
 // Delete 删除{{.Name}}
 func (uc *{{.NameTitle}}Usecase) Delete(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return ErrInvalidParams
+		return Err{{.NameTitle}}InvalidParams
 	}
 	return uc.repo.Delete(ctx, id)
 }
@@ -297,13 +298,13 @@ func (uc *{{.NameTitle}}Usecase) List(ctx context.Context, page, pageSize int) (
 }
 `
 
-const ModuleDataTpl = `package data
+const ModuleApiDataTpl = `package data
 
 import (
 	"context"
 	"sync"
 
-	"{{.ModPath}}/internal/{{.Name}}/biz"
+	"{{.ModPath}}/internal/{{.ModuleName}}/biz"
 )
 
 // {{.Name}}Repo 实现 biz.{{.NameTitle}}Repo 接口，使用内存存储
@@ -392,13 +393,13 @@ func (r *{{.Name}}Repo) List(ctx context.Context, page, pageSize int) ([]*biz.{{
 }
 `
 
-const ModuleServiceTpl = `package service
+const ModuleApiServiceTpl = `package service
 
 import (
 	"context"
 	"errors"
 
-	"{{.ModPath}}/internal/{{.Name}}/biz"
+	"{{.ModPath}}/internal/{{.ModuleName}}/biz"
 )
 
 // Create{{.NameTitle}}Request 创建{{.Name}}请求
@@ -445,7 +446,7 @@ func (s *{{.NameTitle}}Service) Create(ctx context.Context, req *Create{{.NameTi
 	if err != nil {
 		return nil, err
 	}
-	return toResponse(entity), nil
+	return to{{.NameTitle}}Response(entity), nil
 }
 
 // Get 获取{{.Name}}
@@ -454,7 +455,7 @@ func (s *{{.NameTitle}}Service) Get(ctx context.Context, id int64) (*{{.NameTitl
 	if err != nil {
 		return nil, err
 	}
-	return toResponse(entity), nil
+	return to{{.NameTitle}}Response(entity), nil
 }
 
 // Update 更新{{.Name}}
@@ -463,7 +464,7 @@ func (s *{{.NameTitle}}Service) Update(ctx context.Context, id int64, req *Updat
 	if err != nil {
 		return nil, err
 	}
-	return toResponse(entity), nil
+	return to{{.NameTitle}}Response(entity), nil
 }
 
 // Delete 删除{{.Name}}
@@ -479,7 +480,7 @@ func (s *{{.NameTitle}}Service) List(ctx context.Context, req *List{{.NameTitle}
 	}
 	list := make([]*{{.NameTitle}}Response, 0, len(items))
 	for _, item := range items {
-		list = append(list, toResponse(item))
+		list = append(list, to{{.NameTitle}}Response(item))
 	}
 	return &List{{.NameTitle}}Response{
 		Total: total,
@@ -487,21 +488,21 @@ func (s *{{.NameTitle}}Service) List(ctx context.Context, req *List{{.NameTitle}
 	}, nil
 }
 
-// toResponse 转换为响应结构
-func toResponse(entity *biz.{{.NameTitle}}) *{{.NameTitle}}Response {
+// to{{.NameTitle}}Response 转换为响应结构
+func to{{.NameTitle}}Response(entity *biz.{{.NameTitle}}) *{{.NameTitle}}Response {
 	return &{{.NameTitle}}Response{
 		ID:   entity.ID,
 		Name: entity.Name,
 	}
 }
 
-// IsNotFound 判断是否为未找到错误
-func IsNotFound(err error) bool {
+// Is{{.NameTitle}}NotFound 判断是否为未找到错误
+func Is{{.NameTitle}}NotFound(err error) bool {
 	return errors.Is(err, biz.Err{{.NameTitle}}NotFound)
 }
 
-// IsInvalidParams 判断是否为参数错误
-func IsInvalidParams(err error) bool {
-	return errors.Is(err, biz.ErrInvalidParams)
+// Is{{.NameTitle}}InvalidParams 判断是否为参数错误
+func Is{{.NameTitle}}InvalidParams(err error) bool {
+	return errors.Is(err, biz.Err{{.NameTitle}}InvalidParams)
 }
 `

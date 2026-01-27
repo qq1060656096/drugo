@@ -14,7 +14,13 @@ import (
 )
 
 var moduleCmd = &cobra.Command{
-	Use:   "module <模块名称>",
+	Use:   "module",
+	Short: "模块管理",
+	Long:  `管理 Drugo 项目中的模块。`,
+}
+
+var moduleNewCmd = &cobra.Command{
+	Use:   "new <模块名称>",
 	Short: "在当前 Drugo 项目中创建新模块",
 	Long: `在当前项目中创建具有标准 CRUD 结构的新模块。
 
@@ -25,15 +31,16 @@ var moduleCmd = &cobra.Command{
   - service/   服务层（DTO 和编排）
 
 此命令必须在 Drugo 项目根目录（go.mod 所在位置）运行。`,
-	Example: `  drugo new module user
-  drugo new module order
-  drugo new module product`,
+	Example: `  drugo module new user
+  drugo module new order
+  drugo module new product`,
 	Args: cobra.ExactArgs(1),
 	RunE: runNewModule,
 }
 
 func init() {
-	newCmd.AddCommand(moduleCmd)
+	rootCmd.AddCommand(moduleCmd)
+	moduleCmd.AddCommand(moduleNewCmd)
 }
 
 func runNewModule(cmd *cobra.Command, args []string) error {

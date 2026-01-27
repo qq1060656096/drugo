@@ -413,9 +413,7 @@ drugo new module user
 - ` + "`gin.yaml`" + ` - HTTP 服务器配置
 - ` + "`log.yaml`" + ` - 日志配置
 
-## License
 
-MIT
 `
 const AirTomlTpl = `# 项目根目录，"." 表示当前目录
 root = "."
