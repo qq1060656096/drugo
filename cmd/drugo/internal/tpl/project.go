@@ -11,6 +11,8 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+  	//"github.com/qq1060656096/drugo-provider/i18nsvc"
+
 	//biapi "github.com/qq1060656096/drugo-provider/biapi/api"
 	"github.com/qq1060656096/drugo-provider/dbsvc"
 	"github.com/qq1060656096/drugo-provider/ginsrv"
@@ -35,6 +37,7 @@ func main() {
 		drugo.WithService(ginsrv.New()),
 		drugo.WithService(dbsvc.New()),
 		drugo.WithService(redissvc.New()),
+		//drugo.WithService(i18nsvc.New()),
 	)
 	drugo.SetApp(app)
 	//biapi.Init("public", "test_common")
@@ -100,7 +103,7 @@ go 1.25.0
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/qq1060656096/drugo {{.Version}}
-	github.com/qq1060656096/drugo-provider v0.0.6
+	github.com/qq1060656096/drugo-provider v0.0.7
 	go.uber.org/zap v1.27.1
 )
 `
@@ -346,6 +349,27 @@ const RedisYamlTpl = `redis:
     # 使用独立 DB，避免与 session 数据混用
     db: 2
 
+`
+
+const I18nYamlTpl = `i18n:
+  locale_dir: "locales"          # 翻译文件目录
+  default_lang: "en"             # 默认语言
+`
+
+const LocaleEnYmlTpl = `[
+  {
+    "id": "app.hello",
+    "translation": "app hello"
+  }
+]
+`
+
+const LocaleZhYmlTpl = `[
+  {
+    "id": "app.hello",
+    "translation": "应用你好"
+  }
+]
 `
 
 const ReadmeTpl = `# {{.Name}}

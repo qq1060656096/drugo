@@ -30,9 +30,17 @@ var newCmd = &cobra.Command{
   │   └── app/
   │       └── main.go
   ├── conf/
+  │   ├── db.yaml
   │   ├── gin.yaml
-  │   └── log.yaml
+  │   ├── i18n.yaml
+  │   ├── log.yaml
+  │   └── redis.yaml
   ├── internal/
+  ├── locales/
+  │   ├── en/
+  │   │   └── app.en.yml
+  │   └── zh/
+  │       └── app.zh.yml
   ├── runtime/
   │   └── logs/
   ├── go.mod
@@ -114,6 +122,8 @@ func createProject(name, modPath, version string) error {
 		filepath.Join(name, "conf"),
 		filepath.Join(name, "internal"),
 		filepath.Join(name, "runtime", "logs"),
+		filepath.Join(name, "locales", "en"),
+		filepath.Join(name, "locales", "zh"),
 	}
 
 	for _, dir := range dirs {
@@ -126,6 +136,7 @@ func createProject(name, modPath, version string) error {
 	files := map[string]string{
 		filepath.Join(name, "cmd", "app", "main.go"):       tpl.MainGoTpl,
 		filepath.Join(name, "conf", "gin.yaml"):            tpl.GinYamlTpl,
+		filepath.Join(name, "conf", "i18n.yaml"):           tpl.I18nYamlTpl,
 		filepath.Join(name, "conf", "log.yaml"):            tpl.LogYamlTpl,
 		filepath.Join(name, "conf", "db.yaml"):             tpl.DbYamlTpl,
 		filepath.Join(name, "conf", "redis.yaml"):          tpl.RedisYamlTpl,
@@ -135,6 +146,8 @@ func createProject(name, modPath, version string) error {
 		filepath.Join(name, "README.md"):                   tpl.ReadmeTpl,
 		filepath.Join(name, ".air.toml"):                   tpl.AirTomlTpl,
 		filepath.Join(name, "runtime", "logs", ".gitkeep"): "",
+		filepath.Join(name, "locales", "en", "app.en.yml"): tpl.LocaleEnYmlTpl,
+		filepath.Join(name, "locales", "zh", "app.zh.yml"): tpl.LocaleZhYmlTpl,
 	}
 
 	for path, tplContent := range files {
