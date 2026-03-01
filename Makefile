@@ -30,3 +30,11 @@ clean: ## 清理编译产物
 	@rm -rf $(BUILD_DIR)
 	@echo "Cleaned $(BUILD_DIR)"
 
+clearInstall: ## 清理安装的 drugo CLI
+	@CMD_PATH="$$(which $(CLI_NAME) 2>/dev/null)"; \
+	if [ -n "$$CMD_PATH" ]; then \
+		rm -f "$$CMD_PATH"; \
+		echo "Cleaned $(CLI_NAME) from $$CMD_PATH"; \
+	else \
+		echo "$(CLI_NAME) not found in PATH"; \
+	fi

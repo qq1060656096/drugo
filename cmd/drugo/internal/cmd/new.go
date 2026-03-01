@@ -120,6 +120,7 @@ func createProject(name, modPath, version string) error {
 	dirs := []string{
 		filepath.Join(name, "cmd", "app"),
 		filepath.Join(name, "conf"),
+		filepath.Join(name, "configs"),
 		filepath.Join(name, "internal"),
 		filepath.Join(name, "runtime", "logs"),
 		filepath.Join(name, "locales", "en"),
@@ -135,11 +136,13 @@ func createProject(name, modPath, version string) error {
 	// Create files from templates
 	files := map[string]string{
 		filepath.Join(name, "cmd", "app", "main.go"):       tpl.MainGoTpl,
+		filepath.Join(name, "conf", "app.yaml"):            tpl.AppYamlTpl,
 		filepath.Join(name, "conf", "gin.yaml"):            tpl.GinYamlTpl,
 		filepath.Join(name, "conf", "i18n.yaml"):           tpl.I18nYamlTpl,
 		filepath.Join(name, "conf", "log.yaml"):            tpl.LogYamlTpl,
 		filepath.Join(name, "conf", "db.yaml"):             tpl.DbYamlTpl,
 		filepath.Join(name, "conf", "redis.yaml"):          tpl.RedisYamlTpl,
+		filepath.Join(name, "configs", "app.go"):           tpl.ConfigsAppConfigTpl,
 		filepath.Join(name, "go.mod"):                      tpl.GoModTpl,
 		filepath.Join(name, "Makefile"):                    tpl.MakefileTpl,
 		filepath.Join(name, ".gitignore"):                  tpl.GitignoreTpl,

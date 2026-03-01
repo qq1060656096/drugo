@@ -9,6 +9,7 @@ const MainGoTpl = `package main
 import (
 	"context"
 	"os"
+	"{{.ModPath}}/configs"
 
 	"github.com/gin-gonic/gin"
   	//"github.com/qq1060656096/drugo-provider/i18nsvc"
@@ -19,6 +20,7 @@ import (
 	"github.com/qq1060656096/drugo-provider/redissvc"
 
 	"github.com/qq1060656096/drugo/drugo"
+	drugoConfig "github.com/qq1060656096/drugo/config"
 	"github.com/qq1060656096/drugo/pkg/gomod"
 	"github.com/qq1060656096/drugo/pkg/router"
 	"go.uber.org/zap"
@@ -51,8 +53,12 @@ func main() {
 			c.JSON(200, gin.H{"status": "ok"})
 		})
 	})
+
+	// 加载应用配置
+	appConfig := drugoConfig.MustConfig[configs.AppConfig](app.Config(), "app")
 	engine.Use(func(c *gin.Context) {
 		c.Set(drugo.Name, app)
+		c.Set(configs.AppConfigName, &appConfig)
 		c.Next()
 	})
 	// 自动注册所有模块路由
@@ -63,6 +69,11 @@ func main() {
 		panic(err)
 	}
 }
+`
+
+const AppYamlTpl = `app:
+  name: "{{.Name}}"
+  env: "dev"
 `
 
 const GinYamlTpl = `gin:
@@ -103,7 +114,7 @@ go 1.25.0
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/qq1060656096/drugo {{.Version}}
-	github.com/qq1060656096/drugo-provider v0.0.7
+	github.com/qq1060656096/drugo-provider v0.0.8
 	go.uber.org/zap v1.27.1
 )
 `
@@ -348,6 +359,30 @@ const RedisYamlTpl = `redis:
     password: ""
     # 使用独立 DB，避免与 session 数据混用
     db: 2
+
+`
+const ConfigsAppConfigTpl = `package configs
+
+import (
+	"fmt"
+	"github.com/google/uuid"
+)
+
+// appConfigNamePrefix 是配置名的固定前缀
+const appConfigNamePrefix = "__appConfigName"
+
+// AppConfigName 是程序运行时唯一的配置名
+var AppConfigName string
+
+func init() {
+	AppConfigName = fmt.Sprintf("%s_%s", appConfigNamePrefix, uuid.New().String())
+}
+
+// AppConfig 应用程序配置
+type AppConfig struct {
+	Name string ` + "`mapstructure:\"name\"`" + `
+	Env  string ` + "`mapstructure:\"env\"`" + ` // 应用环境: dev, prod, staging
+}
 
 `
 
