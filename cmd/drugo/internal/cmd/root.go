@@ -4,8 +4,8 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"runtime/debug"
 
+	"github.com/qq1060656096/drugo/pkg/gomod"
 	"github.com/spf13/cobra"
 )
 
@@ -44,10 +44,9 @@ func init() {
 }
 
 func getVersion() string {
-	if info, ok := debug.ReadBuildInfo(); ok {
-		if info.Main.Version != "(devel)" {
-			return info.Main.Version
-		}
+	version, _ := gomod.MainVersion()
+	if version == "" {
+		return Version
 	}
-	return Version
+	return version
 }

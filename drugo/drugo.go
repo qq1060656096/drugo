@@ -18,9 +18,8 @@ import (
 
 // 框架元数据
 const (
-	Version = "1.0.0"
 	Name    = "Drugo"
-	logName = "app"
+	logName = "drugo"
 )
 
 var _ kernel.Kernel = (*Drugo)(nil)
@@ -179,7 +178,7 @@ func (d *Drugo) Serve(ctx context.Context) error {
 
 	l.Info("app starting",
 		zap.String("name", Name),
-		zap.String("version", Version),
+		zap.String("version", Version()),
 	)
 
 	if err := d.Boot(ctx); err != nil {

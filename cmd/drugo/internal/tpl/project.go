@@ -441,6 +441,8 @@ make build
 ├── conf/
 │   ├── gin.yaml          # Gin 服务配置
 │   └── log.yaml          # 日志配置
+├── configs/
+│   └── app.go            # 应用配置
 ├── internal/             # 内部模块
 ├── runtime/
 │   └── logs/             # 运行时日志
