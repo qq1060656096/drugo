@@ -539,7 +539,7 @@ func TestMustNewApp(t *testing.T) {
 
 // TestConstants 测试常量定义
 func TestConstants(t *testing.T) {
-	assert.Equal(t, "dev", Version())
+	assert.Equal(t, "(devel)", Version())
 	assert.Equal(t, "Drugo", Name)
 	assert.Equal(t, "drugo", logName)
 	assert.Equal(t, 10*time.Second, DefaultShutdownTimeout)

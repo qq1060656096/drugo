@@ -1,20 +1,18 @@
 package drugo
 
 import (
-	"sync"
-
 	"github.com/qq1060656096/drugo/pkg/gomod"
 )
 
-var version = "dev"
+var (
+	version = "__raw_version_dev"
+)
 
 func init() {
-	sync.OnceFunc(func() {
-		_version, _ := gomod.Version("github.com/qq1060656096/drugo")
-		if _version != "" {
-			version = _version
-		}
-	})
+	_version, _ := gomod.Version("github.com/qq1060656096/drugo")
+	if _version != "" {
+		version = _version
+	}
 }
 
 // Version 获取当前框架的版本号
