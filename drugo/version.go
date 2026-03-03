@@ -10,7 +10,10 @@ var version = "dev"
 
 func init() {
 	sync.OnceFunc(func() {
-		version, _ = gomod.Version("github.com/qq1060656096/drugo")
+		_version, _ := gomod.Version("github.com/qq1060656096/drugo")
+		if _version != "" {
+			version = _version
+		}
 	})
 }
 
