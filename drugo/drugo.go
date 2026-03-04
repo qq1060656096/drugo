@@ -297,8 +297,8 @@ func (d *Drugo) serviceNames() []string {
 func MustNewApp(opts ...Option) *Drugo {
 	app := New(opts...)
 
-	// 初始化配置系统 (默认路径: project_root/conf)
-	configDir := filepath.Join(app.Root(), "conf")
+	// 设置配置文件目录
+	configDir := app.ConfigDir()
 	app.config = config.MustNewManager(configDir)
 
 	// 初始化日志系统 (默认路径: project_root/runtime/logs)
