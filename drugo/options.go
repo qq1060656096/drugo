@@ -16,6 +16,7 @@ type options struct {
 	services        []map[string]kernel.Service
 	ctx             context.Context
 	shutdownTimeout time.Duration
+	configDir       string
 }
 
 type Option func(*options)
@@ -50,5 +51,13 @@ func WithService(service kernel.Service) Option {
 func WithShutdownTimeout(timeout time.Duration) Option {
 	return func(o *options) {
 		o.shutdownTimeout = timeout
+	}
+}
+
+// WithConfigDir 设置配置目录
+// 默认空字符串表示使用默认目录
+func WithConfigDir(configDir string) Option {
+	return func(o *options) {
+		o.configDir = configDir
 	}
 }

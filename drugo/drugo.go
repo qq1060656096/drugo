@@ -33,6 +33,7 @@ type Drugo struct {
 	config          *config.Manager
 	logger          *log.Manager
 	shutdownTimeout time.Duration
+	configDir       string
 }
 
 // Container 返回绑定的服务容器
@@ -242,6 +243,36 @@ func (d *Drugo) Config() *config.Manager {
 	return d.config
 }
 
+// ConfigDir 返回当前实例的配置目录路径。
+//
+// 解析规则（按优先级）：
+//  1. 如果 d.configDir 不为空：
+//     - 若为绝对路径，则直接返回。
+//     - 若为相对路径，则基于 Root() 拼接。
+//  2. 如果 d.configDir 为空：
+//     - 使用默认目录 Root()/conf。
+//
+// 设计说明：
+//   - 绝对路径优先，保证外部可完全控制配置目录。
+//   - 相对路径统一以 Root() 作为基准，避免受工作目录变化影响。
+//   - 默认目录采用 conf，适用于框架内置配置场景。
+//
+// 注意：
+//   - Root() 的语义必须明确（建议固定为项目根目录或启动目录）。
+//   - 若用于容器环境，建议增加环境变量覆盖能力。
+func (d *Drugo) ConfigDir() string {
+	// 如果是空字符串，则使用默认目录
+	if d.configDir == "" {
+		return filepath.Join(d.Root(), "conf")
+	}
+	// 如果是绝对路径，则直接返回
+	if filepath.IsAbs(d.configDir) {
+		return d.configDir
+	}
+	// 相对路径，则拼接根目录
+	return filepath.Join(d.Root(), d.configDir)
+}
+
 // Logger 获取日志管理器
 func (d *Drugo) Logger() *log.Manager {
 	return d.logger
@@ -316,6 +347,7 @@ func New(opts ...Option) *Drugo {
 		ctx:             o.ctx,
 		container:       NewContainer[kernel.Service](),
 		shutdownTimeout: o.shutdownTimeout,
+		configDir:       o.configDir,
 	}
 
 	// 4. 将选项中的服务注册到容器中

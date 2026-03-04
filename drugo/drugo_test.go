@@ -614,3 +614,170 @@ func BenchmarkDrugo_serviceNames(b *testing.B) {
 		_ = app.serviceNames()
 	}
 }
+
+// TestDrugo_ConfigDir 测试配置目录获取
+func TestDrugo_ConfigDir(t *testing.T) {
+	tests := []struct {
+		name      string
+		root      string
+		configDir string
+		expected  string
+	}{
+		{
+			name:      "默认配置目录 - 空字符串",
+			root:      "/app/root",
+			configDir: "",
+			expected:  "/app/root/conf",
+		},
+		{
+			name:      "绝对路径配置目录",
+			root:      "/app/root",
+			configDir: "/etc/config",
+			expected:  "/etc/config",
+		},
+		{
+			name:      "相对路径配置目录",
+			root:      "/app/root",
+			configDir: "config",
+			expected:  "/app/root/config",
+		},
+		{
+			name:      "相对路径配置目录 - 嵌套目录",
+			root:      "/app/root",
+			configDir: "settings/prod",
+			expected:  "/app/root/settings/prod",
+		},
+		{
+			name:      "相对路径配置目录 - 当前目录",
+			root:      "/app/root",
+			configDir: ".",
+			expected:  "/app/root", // filepath.Join 会清理 "."
+		},
+		{
+			name:      "相对路径配置目录 - 上级目录",
+			root:      "/app/root",
+			configDir: "..",
+			expected:  "/app", // filepath.Join 会处理 ".."
+		},
+		{
+			name:      "Windows 风格路径 - 相对路径",
+			root:      "C:\\app\\root",
+			configDir: "config",
+			expected:  "C:\\app\\root/config", // filepath.Join 使用系统分隔符
+		},
+		{
+			name:      "Windows 风格路径 - 绝对路径",
+			root:      "C:\\app\\root",
+			configDir: "D:\\config",
+			expected:  "C:\\app\\root/D:\\config", // 在 Unix 系统上，Windows 路径被视为相对路径，filepath.Join 使用系统分隔符
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := New(WithRoot(tt.root), WithConfigDir(tt.configDir))
+			result := app.ConfigDir()
+			assert.Equal(t, tt.expected, result, "配置目录路径应该匹配预期值")
+		})
+	}
+}
+
+// TestDrugo_ConfigDir_EdgeCases 测试 ConfigDir 方法的边界情况
+func TestDrugo_ConfigDir_EdgeCases(t *testing.T) {
+	t.Run("根目录为空字符串", func(t *testing.T) {
+		app := New(WithRoot(""), WithConfigDir(""))
+		result := app.ConfigDir()
+		assert.Equal(t, "conf", result, "当根目录为空且配置目录为空时，应该返回 conf")
+	})
+
+	t.Run("根目录为当前目录", func(t *testing.T) {
+		app := New(WithRoot("."), WithConfigDir(""))
+		result := app.ConfigDir()
+		assert.Equal(t, "conf", result, "当根目录为当前目录且配置目录为空时，filepath.Join 会清理路径")
+	})
+
+	t.Run("配置目录包含路径分隔符", func(t *testing.T) {
+		app := New(WithRoot("/app"), WithConfigDir("config/subdir"))
+		result := app.ConfigDir()
+		assert.Equal(t, "/app/config/subdir", result, "应该正确处理包含路径分隔符的配置目录")
+	})
+
+	t.Run("配置目录为根路径", func(t *testing.T) {
+		app := New(WithRoot("/app"), WithConfigDir("/"))
+		result := app.ConfigDir()
+		assert.Equal(t, "/", result, "绝对路径的根路径应该直接返回")
+	})
+
+	t.Run("配置目录为空字符串但根目录复杂", func(t *testing.T) {
+		app := New(WithRoot("/very/complex/root/path"), WithConfigDir(""))
+		result := app.ConfigDir()
+		assert.Equal(t, "/very/complex/root/path/conf", result, "复杂根目录应该正确拼接默认配置目录")
+	})
+}
+
+// TestDrugo_ConfigDir_PathNormalization 测试路径标准化
+func TestDrugo_ConfigDir_PathNormalization(t *testing.T) {
+	tests := []struct {
+		name      string
+		root      string
+		configDir string
+		expected  string
+	}{
+		{
+			name:      "相对路径包含多余的斜杠",
+			root:      "/app/root",
+			configDir: "config//subdir",
+			expected:  "/app/root/config/subdir", // filepath.Join 会清理多余的斜杠
+		},
+		{
+			name:      "相对路径包含当前目录引用",
+			root:      "/app/root",
+			configDir: "./config",
+			expected:  "/app/root/config", // filepath.Join 会清理 "."
+		},
+		{
+			name:      "绝对路径包含当前目录引用",
+			root:      "/app/root",
+			configDir: "/./config",
+			expected:  "/./config", // 绝对路径直接返回，不进行路径清理
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := New(WithRoot(tt.root), WithConfigDir(tt.configDir))
+			result := app.ConfigDir()
+			assert.Equal(t, tt.expected, result, "应该符合 filepath.Join 的路径清理行为")
+		})
+	}
+}
+
+// BenchmarkDrugo_ConfigDir 测试 ConfigDir 方法性能
+func BenchmarkDrugo_ConfigDir(b *testing.B) {
+	// 测试默认配置目录性能
+	b.Run("默认配置目录", func(b *testing.B) {
+		app := New(WithRoot("/app/root"), WithConfigDir(""))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = app.ConfigDir()
+		}
+	})
+
+	// 测试绝对路径配置目录性能
+	b.Run("绝对路径配置目录", func(b *testing.B) {
+		app := New(WithRoot("/app/root"), WithConfigDir("/etc/config"))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = app.ConfigDir()
+		}
+	})
+
+	// 测试相对路径配置目录性能
+	b.Run("相对路径配置目录", func(b *testing.B) {
+		app := New(WithRoot("/app/root"), WithConfigDir("config"))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = app.ConfigDir()
+		}
+	})
+}
