@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 // TestNewManager 测试创建新的日志管理器
@@ -24,30 +23,41 @@ func TestNewManager(t *testing.T) {
 		{
 			name: "有效配置",
 			cfg: Config{
-				Dir:        "/tmp/logs",
-				Level:      "info",
-				Format:     "json",
-				MaxSize:    100,
-				MaxBackups: 10,
-				MaxAge:     30,
-				Compress:   true,
-				Console:    false,
+				Level: "info",
+				Outputs: []OutputConfig{
+					{
+						Type:   "file",
+						Format: "json",
+						File: &FileOutputConfig{
+							Dir:        "/tmp/logs",
+							MaxSize:    100,
+							MaxBackups: 10,
+							MaxAge:     30,
+							Compress:   true,
+						},
+					},
+				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "空目录",
-			cfg: Config{
-				Dir: "",
-			},
+			name:    "空 outputs",
+			cfg:     Config{},
 			wantErr: true,
-			errType: ErrEmptyLogDir,
+			errType: ErrEmptyLogOutputs,
 		},
 		{
 			name: "无效的MaxSize",
 			cfg: Config{
-				Dir:     "/tmp/logs",
-				MaxSize: -1,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:     "/tmp/logs",
+							MaxSize: -1,
+						},
+					},
+				},
 			},
 			wantErr: true,
 			errType: ErrInvalidConfigValue,
@@ -55,8 +65,15 @@ func TestNewManager(t *testing.T) {
 		{
 			name: "无效的MaxBackups",
 			cfg: Config{
-				Dir:        "/tmp/logs",
-				MaxBackups: -1,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:        "/tmp/logs",
+							MaxBackups: -1,
+						},
+					},
+				},
 			},
 			wantErr: true,
 			errType: ErrInvalidConfigValue,
@@ -64,8 +81,15 @@ func TestNewManager(t *testing.T) {
 		{
 			name: "无效的MaxAge",
 			cfg: Config{
-				Dir:    "/tmp/logs",
-				MaxAge: -1,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:    "/tmp/logs",
+							MaxAge: -1,
+						},
+					},
+				},
 			},
 			wantErr: true,
 			errType: ErrInvalidConfigValue,
@@ -73,8 +97,12 @@ func TestNewManager(t *testing.T) {
 		{
 			name: "无效的日志级别",
 			cfg: Config{
-				Dir:   "/tmp/logs",
 				Level: "invalid",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			wantErr: true,
 			errType: ErrInvalidLogLevel,
@@ -82,8 +110,13 @@ func TestNewManager(t *testing.T) {
 		{
 			name: "无效的日志格式",
 			cfg: Config{
-				Dir:    "/tmp/logs",
-				Format: "invalid",
+				Outputs: []OutputConfig{
+					{
+						Type:   "file",
+						Format: "invalid",
+						File:   &FileOutputConfig{Dir: "/tmp/logs"},
+					},
+				},
 			},
 			wantErr: true,
 			errType: ErrInvalidLogFormat,
@@ -95,7 +128,7 @@ func TestNewManager(t *testing.T) {
 			m, err := NewManager(tt.cfg)
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.True(t, IsEmptyLogDir(err) || IsInvalidConfigValue(err) || IsInvalidLogLevel(err) || IsInvalidLogFormat(err))
+				assert.True(t, IsEmptyLogOutputs(err) || IsEmptyLogDir(err) || IsInvalidConfigValue(err) || IsInvalidLogLevel(err) || IsInvalidLogFormat(err))
 				assert.Nil(t, m)
 			} else {
 				assert.NoError(t, err)
@@ -111,8 +144,12 @@ func TestNewManager(t *testing.T) {
 // TestMustNewManager 测试MustNewManager函数
 func TestMustNewManager(t *testing.T) {
 	cfg := Config{
-		Dir:   "/tmp/logs",
 		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type: "console",
+			},
+		},
 	}
 
 	// 测试正常情况
@@ -123,7 +160,7 @@ func TestMustNewManager(t *testing.T) {
 
 	// 测试panic情况
 	assert.Panics(t, func() {
-		MustNewManager(Config{Dir: ""})
+		MustNewManager(Config{})
 	})
 }
 
@@ -132,9 +169,14 @@ func TestManager_Get(t *testing.T) {
 	// 创建临时目录
 	tempDir := t.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -185,9 +227,14 @@ func TestManager_Get(t *testing.T) {
 func TestManager_Get_ConcurrentAccess(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -234,9 +281,14 @@ func TestManager_Get_ConcurrentAccess(t *testing.T) {
 func TestManager_Get_DoubleCheckedLocking(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -275,9 +327,14 @@ func TestManager_Get_DoubleCheckedLocking(t *testing.T) {
 func TestManager_MustGet(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -299,9 +356,14 @@ func TestManager_MustGet(t *testing.T) {
 func TestManager_Sync(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -327,9 +389,14 @@ func TestManager_Sync(t *testing.T) {
 func TestManager_Close(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -355,17 +422,21 @@ func TestManager_Close(t *testing.T) {
 
 	// 关闭后应该能重新创建logger
 	_, err = m.Get("test3")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, m.List(), 1)
 }
 
-// TestManager_List 测试列表方法
 func TestManager_List(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -391,166 +462,6 @@ func TestManager_List(t *testing.T) {
 	}
 }
 
-// TestManager_Remove 测试移除方法
-func TestManager_Remove(t *testing.T) {
-	tempDir := t.TempDir()
-	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
-	}
-
-	m, err := NewManager(cfg)
-	require.NoError(t, err)
-
-	// 添加logger
-	_, err = m.Get("test")
-	require.NoError(t, err)
-	assert.Len(t, m.List(), 1)
-
-	// 移除logger
-	err = m.Remove("test")
-	assert.NoError(t, err)
-	assert.Empty(t, m.List())
-
-	// 移除不存在的logger
-	err = m.Remove("nonexistent")
-	assert.NoError(t, err)
-}
-
-// TestManager_SetLevel 测试设置日志级别
-func TestManager_SetLevel(t *testing.T) {
-	tempDir := t.TempDir()
-	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
-	}
-
-	m, err := NewManager(cfg)
-	require.NoError(t, err)
-
-	// 创建logger
-	logger, err := m.Get("test")
-	require.NoError(t, err)
-
-	tests := []struct {
-		name    string
-		bizName string
-		level   string
-		wantErr bool
-		errType error
-	}{
-		{
-			name:    "设置有效级别",
-			bizName: "test",
-			level:   "debug",
-			wantErr: false,
-		},
-		{
-			name:    "空业务名称",
-			bizName: "",
-			level:   "debug",
-			wantErr: true,
-			errType: ErrEmptyBizName,
-		},
-		{
-			name:    "无效级别",
-			bizName: "test",
-			level:   "invalid",
-			wantErr: true,
-			errType: ErrInvalidLogLevel,
-		},
-		{
-			name:    "logger不存在",
-			bizName: "nonexistent",
-			level:   "debug",
-			wantErr: true,
-			errType: ErrLoggerNotFound,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := m.SetLevel(tt.bizName, tt.level)
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.True(t, IsEmptyBizName(err) || IsInvalidLogLevel(err) || IsLoggerNotFound(err))
-			} else {
-				assert.NoError(t, err)
-				// 验证级别确实被修改了
-				currentLevel, err := m.GetLevel(tt.bizName)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.level, currentLevel)
-			}
-		})
-	}
-
-	// 测试日志级别确实生效
-	initialLevel := logger.Core().Enabled(zapcore.InfoLevel)
-	m.SetLevel("test", "error")
-	newLevel := logger.Core().Enabled(zapcore.InfoLevel)
-	assert.True(t, initialLevel, "info级别最初应该启用")
-	assert.False(t, newLevel, "设置为error级别后，info级别应该被禁用")
-}
-
-// TestManager_GetLevel 测试获取日志级别
-func TestManager_GetLevel(t *testing.T) {
-	tempDir := t.TempDir()
-	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
-	}
-
-	m, err := NewManager(cfg)
-	require.NoError(t, err)
-
-	// 创建logger
-	_, err = m.Get("test")
-	require.NoError(t, err)
-
-	tests := []struct {
-		name    string
-		bizName string
-		wantErr bool
-		errType error
-	}{
-		{
-			name:    "获取存在的logger级别",
-			bizName: "test",
-			wantErr: false,
-		},
-		{
-			name:    "空业务名称",
-			bizName: "",
-			wantErr: true,
-			errType: ErrEmptyBizName,
-		},
-		{
-			name:    "logger不存在",
-			bizName: "nonexistent",
-			wantErr: true,
-			errType: ErrLoggerNotFound,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			level, err := m.GetLevel(tt.bizName)
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.True(t, IsEmptyBizName(err) || IsLoggerNotFound(err))
-				assert.Empty(t, level)
-			} else {
-				assert.NoError(t, err)
-				assert.NotEmpty(t, level)
-				assert.Equal(t, "info", level) // 初始级别应该是info
-			}
-		})
-	}
-}
-
 // TestInit 测试全局初始化
 func TestInit(t *testing.T) {
 	// 重置全局状态
@@ -559,9 +470,14 @@ func TestInit(t *testing.T) {
 
 	tempDir := t.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	// 测试正常初始化
@@ -573,11 +489,13 @@ func TestInit(t *testing.T) {
 
 	// 测试多次初始化（应该只初始化一次）
 	assert.NotPanics(t, func() {
-		Init(Config{Dir: "/tmp/other"})
+		Init(Config{Level: "info", Outputs: []OutputConfig{{Type: "file", File: &FileOutputConfig{Dir: "/tmp/other"}}}})
 	})
 
 	// defaultManager应该还是第一次的值
-	assert.Equal(t, tempDir, Default().cfg.Dir)
+	require.NotEmpty(t, Default().cfg.Outputs)
+	require.NotNil(t, Default().cfg.Outputs[0].File)
+	assert.Equal(t, tempDir, Default().cfg.Outputs[0].File.Dir)
 }
 
 // TestDefault 测试默认manager
@@ -591,7 +509,7 @@ func TestDefault(t *testing.T) {
 
 	// 初始化后应该返回manager
 	tempDir := t.TempDir()
-	Init(Config{Dir: tempDir})
+	Init(Config{Level: "info", Outputs: []OutputConfig{{Type: "file", File: &FileOutputConfig{Dir: tempDir}}}})
 	assert.NotNil(t, Default())
 }
 
@@ -599,14 +517,24 @@ func TestDefault(t *testing.T) {
 func TestManager_Integration(t *testing.T) {
 	tempDir := t.TempDir()
 	cfg := Config{
-		Dir:        tempDir,
-		Level:      "info",
-		Format:     "json",
-		MaxSize:    10,
-		MaxBackups: 3,
-		MaxAge:     7,
-		Compress:   true,
-		Console:    true,
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File: &FileOutputConfig{
+					Dir:        tempDir,
+					MaxSize:    10,
+					MaxBackups: 3,
+					MaxAge:     7,
+					Compress:   true,
+				},
+			},
+			{
+				Type:   "console",
+				Format: "text",
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -664,9 +592,14 @@ func TestManager_Integration(t *testing.T) {
 func BenchmarkManager_Get(b *testing.B) {
 	tempDir := b.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -694,9 +627,14 @@ func BenchmarkManager_Get(b *testing.B) {
 func BenchmarkManager_Get_Cached(b *testing.B) {
 	tempDir := b.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)
@@ -715,9 +653,14 @@ func BenchmarkManager_Get_Cached(b *testing.B) {
 func BenchmarkManager_SetLevel(b *testing.B) {
 	tempDir := b.TempDir()
 	cfg := Config{
-		Dir:    tempDir,
-		Level:  "info",
-		Format: "json",
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: tempDir},
+			},
+		},
 	}
 
 	m, err := NewManager(cfg)

@@ -2,30 +2,64 @@ package log
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+type zapWriter struct {
+	l   *zap.Logger
+	lvl zapcore.Level
+}
+
+func (w *zapWriter) Write(p []byte) (n int, err error) {
+	if w == nil || w.l == nil {
+		return len(p), nil
+	}
+	msg := strings.TrimSpace(string(p))
+	if msg == "" {
+		return len(p), nil
+	}
+	if ce := w.l.Check(w.lvl, msg); ce != nil {
+		ce.Write()
+	}
+	return len(p), nil
+}
+
+// NewWriter 将 io.Writer 的写入桥接到 zap.Logger。
+// 用于把第三方库（例如 gin.DefaultWriter / gin.DefaultErrorWriter）的输出重定向到 zap。
+func NewWriter(l *zap.Logger, lvl zapcore.Level) io.Writer {
+	return &zapWriter{l: l, lvl: lvl}
+}
+
+// NewManagerWriter 是 NewWriter 的便捷封装：从 Manager 中按 bizName 获取 logger。
+func NewManagerWriter(m *Manager, bizName string, lvl zapcore.Level) (io.Writer, error) {
+	if m == nil {
+		return nil, ErrNilManager
+	}
+	l, err := m.Get(bizName)
+	if err != nil {
+		return nil, err
+	}
+	return NewWriter(l, lvl), nil
+}
+
 func NewZapLogger(cfg Config, bizName string) (*zap.Logger, zap.AtomicLevel, error) {
-	level, err := zap.ParseAtomicLevel(cfg.Level)
+	levelText := cfg.Level
+	if levelText == "" {
+		levelText = "info"
+	}
+
+	level, err := zap.ParseAtomicLevel(levelText)
 	if err != nil {
 		return nil, zap.AtomicLevel{}, fmt.Errorf("failed to parse log level for '%s' (%v): %w", bizName, err, ErrInvalidLogLevel)
 	}
 
-	// 文件输出 writer
-	fileWriter := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   filepath.Join(cfg.Dir, bizName+".log"),
-		MaxSize:    cfg.MaxSize,
-		MaxBackups: cfg.MaxBackups,
-		MaxAge:     cfg.MaxAge,
-		Compress:   cfg.Compress,
-	})
-
-	// 根据配置选择编码器
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "ts",
 		LevelKey:       "level",
@@ -39,54 +73,56 @@ func NewZapLogger(cfg Config, bizName string) (*zap.Logger, zap.AtomicLevel, err
 		EncodeDuration: zapcore.SecondsDurationEncoder,
 	}
 
-	format := cfg.Format
-	if format == "" {
-		format = "json" // 默认使用 json 格式
+	var cores []zapcore.Core
+	for _, out := range cfg.Outputs {
+		format := out.Format
+		if format == "" {
+			format = FormatText
+		}
+
+		var enc zapcore.Encoder
+		switch format {
+		case FormatJSON:
+			enc = zapcore.NewJSONEncoder(encoderConfig)
+		case FormatText:
+			textCfg := encoderConfig
+			textCfg.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
+			textCfg.EncodeLevel = zapcore.CapitalLevelEncoder
+			textCfg.EncodeCaller = zapcore.ShortCallerEncoder
+			textCfg.ConsoleSeparator = " "
+			enc = zapcore.NewConsoleEncoder(textCfg)
+		default:
+			return nil, zap.AtomicLevel{}, fmt.Errorf("unsupported log format '%s' for '%s': %w (supported formats: %s, %s)", format, bizName, ErrInvalidLogFormat, FormatJSON, FormatText)
+		}
+
+		switch out.Type {
+		case "file":
+			if out.File == nil {
+				return nil, zap.AtomicLevel{}, fmt.Errorf("file output config missing for '%s': %w", bizName, ErrInvalidConfigValue)
+			}
+			fileWriter := zapcore.AddSync(&lumberjack.Logger{
+				Filename:   filepath.Join(out.File.Dir, bizName+".log"),
+				MaxSize:    out.File.MaxSize,
+				MaxBackups: out.File.MaxBackups,
+				MaxAge:     out.File.MaxAge,
+				Compress:   out.File.Compress,
+			})
+			cores = append(cores, zapcore.NewCore(enc, fileWriter, level))
+		case "console":
+			stdoutLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+				return lvl < zapcore.ErrorLevel && lvl >= level.Level()
+			})
+			stderrLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+				return lvl >= zapcore.ErrorLevel && lvl >= level.Level()
+			})
+			cores = append(cores,
+				zapcore.NewCore(enc, zapcore.AddSync(os.Stdout), stdoutLevel),
+				zapcore.NewCore(enc, zapcore.AddSync(os.Stderr), stderrLevel),
+			)
+		}
 	}
 
-	// 创建文件编码器
-	var fileEncoder zapcore.Encoder
-	switch format {
-	case "json":
-		fileEncoder = zapcore.NewJSONEncoder(encoderConfig)
-	case "console":
-		encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder // console 模式使用彩色输出
-		fileEncoder = zapcore.NewConsoleEncoder(encoderConfig)
-	case "text", "standard":
-		// 标准应用日志格式：2024-01-10 13:55:36 [INFO] message key=value
-		encoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
-		encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-		encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
-		encoderConfig.ConsoleSeparator = " "
-		fileEncoder = zapcore.NewConsoleEncoder(encoderConfig)
-	default:
-		return nil, zap.AtomicLevel{}, fmt.Errorf("unsupported log format '%s' for '%s': %w (supported formats: json, console, text)", format, bizName, ErrInvalidLogFormat)
-	}
-
-	// 创建文件 core
-	fileCore := zapcore.NewCore(fileEncoder, fileWriter, level)
-
-	// 如果启用控制台输出，创建多核心
-	var core zapcore.Core
-	if cfg.Console {
-		// 控制台编码器配置（使用彩色输出）
-		consoleEncoderConfig := encoderConfig
-		consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		consoleEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05")
-		consoleEncoder := zapcore.NewConsoleEncoder(consoleEncoderConfig)
-
-		// 控制台 core
-		consoleCore := zapcore.NewCore(
-			consoleEncoder,
-			zapcore.AddSync(os.Stdout),
-			level,
-		)
-
-		// 合并文件和控制台 core
-		core = zapcore.NewTee(fileCore, consoleCore)
-	} else {
-		core = fileCore
-	}
+	core := zapcore.NewTee(cores...)
 
 	logger := zap.New(core,
 		zap.AddCaller(),

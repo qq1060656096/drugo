@@ -2,6 +2,8 @@ package drugo
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -9,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/qq1060656096/drugo/config"
 	"github.com/qq1060656096/drugo/kernel"
 	"github.com/qq1060656096/drugo/log"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -34,6 +38,21 @@ type Drugo struct {
 	logger          *log.Manager
 	shutdownTimeout time.Duration
 	configDir       string
+}
+
+// ResolveDir 根据 root、dir 和默认子目录 defaultSubdir 解析最终目录路径。
+// 解析规则：
+//   - dir 为空：返回 filepath.Join(root, defaultSubdir)
+//   - dir 为绝对路径：直接返回 dir
+//   - dir 为相对路径：返回 filepath.Join(root, dir)
+func ResolveDir(root, dir, defaultSubdir string) string {
+	if dir == "" {
+		return filepath.Join(root, defaultSubdir)
+	}
+	if filepath.IsAbs(dir) {
+		return dir
+	}
+	return filepath.Join(root, dir)
 }
 
 // Container 返回绑定的服务容器
@@ -261,16 +280,7 @@ func (d *Drugo) Config() *config.Manager {
 //   - Root() 的语义必须明确（建议固定为项目根目录或启动目录）。
 //   - 若用于容器环境，建议增加环境变量覆盖能力。
 func (d *Drugo) ConfigDir() string {
-	// 如果是空字符串，则使用默认目录
-	if d.configDir == "" {
-		return filepath.Join(d.Root(), "conf")
-	}
-	// 如果是绝对路径，则直接返回
-	if filepath.IsAbs(d.configDir) {
-		return d.configDir
-	}
-	// 相对路径，则拼接根目录
-	return filepath.Join(d.Root(), d.configDir)
+	return ResolveDir(d.Root(), d.configDir, "conf")
 }
 
 // Logger 获取日志管理器
@@ -303,13 +313,43 @@ func MustNewApp(opts ...Option) *Drugo {
 
 	// 初始化日志系统 (默认路径: project_root/runtime/logs)
 	logConfigDir := filepath.Join(app.Root(), "runtime/logs")
-	logCfg := log.Config{
-		Dir: logConfigDir,
-	}
+	logCfg := log.Config{}
 
 	// 尝试从配置文件加载日志配置
 	if logConfig, err := app.Config().Get("log"); err == nil {
-		_ = logConfig.Unmarshal(&logCfg)
+		if err := logConfig.Unmarshal(&logCfg); err != nil {
+			fmt.Fprintf(os.Stderr, "drugo: failed to unmarshal log config: %v\n", err)
+		}
+	}
+	if len(logCfg.Outputs) == 0 {
+		fmt.Fprintf(os.Stderr, "drugo: log.outputs is empty, fallback to default file logger\n")
+	}
+	if logCfg.Level == "" {
+		logCfg.Level = "info"
+	}
+	if len(logCfg.Outputs) == 0 {
+		logCfg.Outputs = []log.OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File: &log.FileOutputConfig{
+					Dir: logConfigDir,
+				},
+			},
+		}
+	}
+	for i := range logCfg.Outputs {
+		out := &logCfg.Outputs[i]
+		if out.Type == "file" {
+			if out.File == nil {
+				out.File = &log.FileOutputConfig{}
+			}
+			if out.File.Dir == "" {
+				out.File.Dir = logConfigDir
+			} else {
+				out.File.Dir = ResolveDir(app.Root(), out.File.Dir, "runtime/logs")
+			}
+		}
 	}
 
 	var err error
@@ -317,11 +357,18 @@ func MustNewApp(opts ...Option) *Drugo {
 	if err != nil {
 		panic(err) // NewApp 不返回 error，配置错误时 panic
 	}
+	// 将 gin 的默认输出重定向到 zap，避免 Gin 的 [GIN-debug] 日志只打印到控制台。
+	// 注意：这里使用独立的 bizName=gin，日志会写入 gin.log（取决于 log.outputs 的 file 配置）。
+	ginLogger := app.Logger().MustGet("gin")
+	gin.DefaultWriter = io.MultiWriter(gin.DefaultWriter, log.NewWriter(ginLogger, zapcore.InfoLevel))
+	gin.DefaultErrorWriter = io.MultiWriter(gin.DefaultErrorWriter, log.NewWriter(ginLogger, zapcore.ErrorLevel))
+
 	drugoLog := app.Logger().MustGet(logName)
 	drugoLog.Info("framework init")
 	drugoLog.Info("framework init has service names: " + strings.Join(app.serviceNames(), ", "))
 	drugoLog.Info("framework init has config dir: " + configDir)
 	drugoLog.Info("framework init has log dir: " + logConfigDir)
+	drugoLog.Info("framework init has log config: ", zap.Any("logConfig", logCfg))
 	drugoLog.Info("framework init has config biz names: " + strings.Join(app.Config().List(), ", "))
 
 	return app

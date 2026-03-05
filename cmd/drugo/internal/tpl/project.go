@@ -98,13 +98,18 @@ const GinYamlTpl = `gin:
 `
 
 const LogYamlTpl = `log:
-  level: "debug"          # debug, info, warn, error
-  format: "json"          # console, json, text
-  max_size: 100           # MB
-  max_backups: 30
-  max_age: 7              # days
-  compress: true
-  console: true           # 同时输出到控制台
+  level: info # 全局日志级别，可选值：debug / info / warn / error / dpanic / panic / fatal
+  outputs: # 输出目标列表，可配置多个输出，支持 outputs.console 和 outputs.file
+    - type: console        # 控制台输出
+      format: text         # 输出格式，可选值：json / text
+
+    - type: file           # 文件输出，支持切分与保留策略
+      format: json         # 输出格式，可选值：json / text
+      file:                # 文件输出详细配置
+        max_size: 100      # 单个日志文件最大尺寸（MB）
+        max_backups: 10    # 最大保留的旧文件数量
+        max_age: 30        # 最大保留天数
+        compress: true     # 是否压缩旧日志（gzip）
 `
 
 const GoModTpl = `module {{.ModPath}}

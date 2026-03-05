@@ -17,62 +17,80 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid config with all fields",
 			config: Config{
-				Dir:        "/tmp/logs",
-				Level:      "info",
-				Format:     "json",
-				MaxSize:    100,
-				MaxBackups: 10,
-				MaxAge:     30,
-				Compress:   true,
-				Console:    false,
+				Level: "info",
+				Outputs: []OutputConfig{
+					{
+						Type:   "file",
+						Format: "json",
+						File: &FileOutputConfig{
+							Dir:        "/tmp/logs",
+							MaxSize:    100,
+							MaxBackups: 10,
+							MaxAge:     30,
+							Compress:   true,
+						},
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid config with minimal fields",
 			config: Config{
-				Dir: "/tmp/logs",
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{Dir: "/tmp/logs"},
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
-			name: "valid config with console format",
+			name: "valid config with json format",
 			config: Config{
-				Dir:    "/tmp/logs",
-				Level:  "debug",
-				Format: "console",
+				Level: "debug",
+				Outputs: []OutputConfig{
+					{
+						Type:   "console",
+						Format: "json",
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid config with text format",
 			config: Config{
-				Dir:    "/tmp/logs",
-				Level:  "warn",
-				Format: "text",
+				Level: "warn",
+				Outputs: []OutputConfig{
+					{
+						Type:   "console",
+						Format: "text",
+					},
+				},
 			},
 			expectError: false,
 		},
+
 		{
-			name: "valid config with standard format",
-			config: Config{
-				Dir:    "/tmp/logs",
-				Level:  "error",
-				Format: "standard",
-			},
-			expectError: false,
-		},
-		{
-			name:        "empty dir should error",
+			name:        "empty outputs should error",
 			config:      Config{},
 			expectError: true,
-			errorType:   IsEmptyLogDir,
+			errorType:   IsEmptyLogOutputs,
 		},
 		{
 			name: "negative max size should error",
 			config: Config{
-				Dir:     "/tmp/logs",
-				MaxSize: -1,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:     "/tmp/logs",
+							MaxSize: -1,
+						},
+					},
+				},
 			},
 			expectError: true,
 			errorType:   IsInvalidConfigValue,
@@ -80,8 +98,15 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "negative max backups should error",
 			config: Config{
-				Dir:        "/tmp/logs",
-				MaxBackups: -1,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:        "/tmp/logs",
+							MaxBackups: -1,
+						},
+					},
+				},
 			},
 			expectError: true,
 			errorType:   IsInvalidConfigValue,
@@ -89,8 +114,15 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "negative max age should error",
 			config: Config{
-				Dir:    "/tmp/logs",
-				MaxAge: -1,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:    "/tmp/logs",
+							MaxAge: -1,
+						},
+					},
+				},
 			},
 			expectError: true,
 			errorType:   IsInvalidConfigValue,
@@ -98,10 +130,17 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "multiple negative values should error",
 			config: Config{
-				Dir:        "/tmp/logs",
-				MaxSize:    -10,
-				MaxBackups: -5,
-				MaxAge:     -30,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:        "/tmp/logs",
+							MaxSize:    -10,
+							MaxBackups: -5,
+							MaxAge:     -30,
+						},
+					},
+				},
 			},
 			expectError: true,
 			errorType:   IsInvalidConfigValue,
@@ -109,8 +148,12 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "invalid log level should error",
 			config: Config{
-				Dir:   "/tmp/logs",
 				Level: "invalid",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectError: true,
 			errorType:   IsInvalidLogLevel,
@@ -118,8 +161,13 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "invalid log format should error",
 			config: Config{
-				Dir:    "/tmp/logs",
-				Format: "invalid",
+				Outputs: []OutputConfig{
+					{
+						Type:   "file",
+						Format: "invalid",
+						File:   &FileOutputConfig{Dir: "/tmp/logs"},
+					},
+				},
 			},
 			expectError: true,
 			errorType:   IsInvalidLogFormat,
@@ -127,76 +175,118 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "zero values for size/backups/age should be valid",
 			config: Config{
-				Dir:        "/tmp/logs",
-				MaxSize:    0,
-				MaxBackups: 0,
-				MaxAge:     0,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:        "/tmp/logs",
+							MaxSize:    0,
+							MaxBackups: 0,
+							MaxAge:     0,
+						},
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "positive values for size/backups/age should be valid",
 			config: Config{
-				Dir:        "/tmp/logs",
-				MaxSize:    500,
-				MaxBackups: 100,
-				MaxAge:     365,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:        "/tmp/logs",
+							MaxSize:    500,
+							MaxBackups: 100,
+							MaxAge:     365,
+						},
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "all valid log levels",
 			config: Config{
-				Dir:   "/tmp/logs",
 				Level: "debug",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "info log level",
 			config: Config{
-				Dir:   "/tmp/logs",
 				Level: "info",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "warn log level",
 			config: Config{
-				Dir:   "/tmp/logs",
 				Level: "warn",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "error log level",
 			config: Config{
-				Dir:   "/tmp/logs",
 				Level: "error",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "dpanic log level",
 			config: Config{
-				Dir:   "/tmp/logs",
 				Level: "dpanic",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "panic log level",
 			config: Config{
-				Dir:   "/tmp/logs",
 				Level: "panic",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectError: false,
 		},
 		{
 			name: "fatal log level",
 			config: Config{
-				Dir:   "/tmp/logs",
 				Level: "fatal",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectError: false,
 		},
@@ -228,21 +318,35 @@ func TestConfig_Validate_EmptyStringFields(t *testing.T) {
 		{
 			name: "empty level should be valid",
 			config: Config{
-				Dir: "/tmp/logs",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty format should be valid",
 			config: Config{
-				Dir: "/tmp/logs",
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{Dir: "/tmp/logs"},
+					},
+				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty dir should error",
 			config: Config{
-				Dir: "",
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{Dir: ""},
+					},
+				},
 			},
 			wantErr:  true,
 			errorMsg: "log directory cannot be empty",
@@ -265,14 +369,20 @@ func TestConfig_Validate_EmptyStringFields(t *testing.T) {
 }
 
 func TestConfig_Validate_LogFormats(t *testing.T) {
-	validFormats := []string{"json", "console", "text", "standard"}
+
+	validFormats := []string{"json", "text"}
 	invalidFormats := []string{"", "xml", "yaml", "txt", "log", "custom"}
 
 	for _, format := range validFormats {
 		t.Run("valid format_"+format, func(t *testing.T) {
 			config := Config{
-				Dir:    "/tmp/logs",
-				Format: format,
+				Outputs: []OutputConfig{
+					{
+						Type:   "file",
+						Format: format,
+						File:   &FileOutputConfig{Dir: "/tmp/logs"},
+					},
+				},
 			}
 			err := config.Validate()
 			assert.NoError(t, err)
@@ -285,8 +395,13 @@ func TestConfig_Validate_LogFormats(t *testing.T) {
 		}
 		t.Run("invalid format_"+format, func(t *testing.T) {
 			config := Config{
-				Dir:    "/tmp/logs",
-				Format: format,
+				Outputs: []OutputConfig{
+					{
+						Type:   "file",
+						Format: format,
+						File:   &FileOutputConfig{Dir: "/tmp/logs"},
+					},
+				},
 			}
 			err := config.Validate()
 			require.Error(t, err)
@@ -302,8 +417,12 @@ func TestConfig_Validate_LogLevels(t *testing.T) {
 	for _, level := range validLevels {
 		t.Run("valid level_"+level, func(t *testing.T) {
 			config := Config{
-				Dir:   "/tmp/logs",
 				Level: level,
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			}
 			err := config.Validate()
 			assert.NoError(t, err)
@@ -313,8 +432,12 @@ func TestConfig_Validate_LogLevels(t *testing.T) {
 	for _, level := range invalidLevels {
 		t.Run("invalid level_"+level, func(t *testing.T) {
 			config := Config{
-				Dir:   "/tmp/logs",
 				Level: level,
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			}
 			err := config.Validate()
 			require.Error(t, err)
@@ -333,8 +456,15 @@ func TestConfig_Validate_EdgeCases(t *testing.T) {
 		{
 			name: "very large max size",
 			config: Config{
-				Dir:     "/tmp/logs",
-				MaxSize: 10000, // 10GB
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:     "/tmp/logs",
+							MaxSize: 10000, // 10GB
+						},
+					},
+				},
 			},
 			expectError: false,
 			description: "Large max size should be valid",
@@ -342,8 +472,15 @@ func TestConfig_Validate_EdgeCases(t *testing.T) {
 		{
 			name: "very large max backups",
 			config: Config{
-				Dir:        "/tmp/logs",
-				MaxBackups: 1000,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:        "/tmp/logs",
+							MaxBackups: 1000,
+						},
+					},
+				},
 			},
 			expectError: false,
 			description: "Large max backups should be valid",
@@ -351,8 +488,15 @@ func TestConfig_Validate_EdgeCases(t *testing.T) {
 		{
 			name: "very large max age",
 			config: Config{
-				Dir:    "/tmp/logs",
-				MaxAge: 3650, // 10 years
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:    "/tmp/logs",
+							MaxAge: 3650, // 10 years
+						},
+					},
+				},
 			},
 			expectError: false,
 			description: "Large max age should be valid",
@@ -360,9 +504,18 @@ func TestConfig_Validate_EdgeCases(t *testing.T) {
 		{
 			name: "all boolean combinations",
 			config: Config{
-				Dir:      "/tmp/logs",
-				Compress: true,
-				Console:  true,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:      "/tmp/logs",
+							Compress: true,
+						},
+					},
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectError: false,
 			description: "Both compress and console enabled should be valid",
@@ -370,22 +523,37 @@ func TestConfig_Validate_EdgeCases(t *testing.T) {
 		{
 			name: "minimal valid config",
 			config: Config{
-				Dir: "/tmp/logs",
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{Dir: "/tmp/logs"},
+					},
+				},
 			},
 			expectError: false,
-			description: "Only dir should be required",
+			description: "Only outputs should be required",
 		},
 		{
 			name: "config with all fields set",
 			config: Config{
-				Dir:        "/tmp/logs",
-				Level:      "info",
-				Format:     "json",
-				MaxSize:    100,
-				MaxBackups: 10,
-				MaxAge:     30,
-				Compress:   true,
-				Console:    true,
+				Level: "info",
+				Outputs: []OutputConfig{
+					{
+						Type:   "file",
+						Format: "json",
+						File: &FileOutputConfig{
+							Dir:        "/tmp/logs",
+							MaxSize:    100,
+							MaxBackups: 10,
+							MaxAge:     30,
+							Compress:   true,
+						},
+					},
+					{
+						Type:   "console",
+						Format: "text",
+					},
+				},
 			},
 			expectError: false,
 			description: "All fields set with valid values should be valid",
@@ -411,33 +579,47 @@ func TestConfig_Validate_ErrorMessages(t *testing.T) {
 		expectedMsg string
 	}{
 		{
-			name: "empty dir error message",
-			config: Config{
-				Dir: "",
-			},
-			expectedMsg: "log directory cannot be empty",
+			name:        "empty outputs error message",
+			config:      Config{},
+			expectedMsg: "log outputs cannot be empty",
 		},
 		{
 			name: "invalid config value error message",
 			config: Config{
-				Dir:     "/tmp/logs",
-				MaxSize: -1,
+				Outputs: []OutputConfig{
+					{
+						Type: "file",
+						File: &FileOutputConfig{
+							Dir:     "/tmp/logs",
+							MaxSize: -1,
+						},
+					},
+				},
 			},
 			expectedMsg: "invalid config value: max_size, max_backups, max_age must be non-negative",
 		},
 		{
 			name: "invalid log level error message",
 			config: Config{
-				Dir:   "/tmp/logs",
 				Level: "invalid",
+				Outputs: []OutputConfig{
+					{
+						Type: "console",
+					},
+				},
 			},
 			expectedMsg: "invalid log level",
 		},
 		{
 			name: "invalid log format error message",
 			config: Config{
-				Dir:    "/tmp/logs",
-				Format: "invalid",
+				Outputs: []OutputConfig{
+					{
+						Type:   "file",
+						Format: "invalid",
+						File:   &FileOutputConfig{Dir: "/tmp/logs"},
+					},
+				},
 			},
 			expectedMsg: "invalid log format",
 		},
@@ -455,14 +637,20 @@ func TestConfig_Validate_ErrorMessages(t *testing.T) {
 // Benchmark tests
 func BenchmarkConfig_Validate_Valid(b *testing.B) {
 	config := Config{
-		Dir:        "/tmp/logs",
-		Level:      "info",
-		Format:     "json",
-		MaxSize:    100,
-		MaxBackups: 10,
-		MaxAge:     30,
-		Compress:   true,
-		Console:    false,
+		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File: &FileOutputConfig{
+					Dir:        "/tmp/logs",
+					MaxSize:    100,
+					MaxBackups: 10,
+					MaxAge:     30,
+					Compress:   true,
+				},
+			},
+		},
 	}
 
 	b.ResetTimer()
@@ -473,7 +661,12 @@ func BenchmarkConfig_Validate_Valid(b *testing.B) {
 
 func BenchmarkConfig_Validate_Minimal(b *testing.B) {
 	config := Config{
-		Dir: "/tmp/logs",
+		Outputs: []OutputConfig{
+			{
+				Type: "file",
+				File: &FileOutputConfig{Dir: "/tmp/logs"},
+			},
+		},
 	}
 
 	b.ResetTimer()
@@ -484,8 +677,12 @@ func BenchmarkConfig_Validate_Minimal(b *testing.B) {
 
 func BenchmarkConfig_Validate_WithLevel(b *testing.B) {
 	config := Config{
-		Dir:   "/tmp/logs",
 		Level: "info",
+		Outputs: []OutputConfig{
+			{
+				Type: "console",
+			},
+		},
 	}
 
 	b.ResetTimer()
@@ -496,8 +693,13 @@ func BenchmarkConfig_Validate_WithLevel(b *testing.B) {
 
 func BenchmarkConfig_Validate_WithFormat(b *testing.B) {
 	config := Config{
-		Dir:    "/tmp/logs",
-		Format: "json",
+		Outputs: []OutputConfig{
+			{
+				Type:   "file",
+				Format: "json",
+				File:   &FileOutputConfig{Dir: "/tmp/logs"},
+			},
+		},
 	}
 
 	b.ResetTimer()

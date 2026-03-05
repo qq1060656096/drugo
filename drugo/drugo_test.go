@@ -168,9 +168,13 @@ func TestDrugo_Boot(t *testing.T) {
 			if tt.setupLogger {
 				// 创建一个简单的日志配置
 				logCfg := log.Config{
-					Dir:    "/tmp/test-logs",
-					Level:  "info",
-					Format: "console",
+					Level: "info",
+					Outputs: []log.OutputConfig{
+						{
+							Type:   "console",
+							Format: "text",
+						},
+					},
 				}
 				logger, err := log.NewManager(logCfg)
 				require.NoError(t, err)
@@ -259,9 +263,13 @@ func TestDrugo_Run(t *testing.T) {
 			// 设置日志管理器
 			if tt.setupLogger {
 				logCfg := log.Config{
-					Dir:    "/tmp/test-logs",
-					Level:  "info",
-					Format: "console",
+					Level: "info",
+					Outputs: []log.OutputConfig{
+						{
+							Type:   "console",
+							Format: "text",
+						},
+					},
 				}
 				logger, err := log.NewManager(logCfg)
 				require.NoError(t, err)
@@ -342,9 +350,13 @@ func TestDrugo_Shutdown(t *testing.T) {
 			// 设置日志管理器
 			if tt.setupLogger {
 				logCfg := log.Config{
-					Dir:    "/tmp/test-logs",
-					Level:  "info",
-					Format: "console",
+					Level: "info",
+					Outputs: []log.OutputConfig{
+						{
+							Type:   "console",
+							Format: "text",
+						},
+					},
 				}
 				logger, err := log.NewManager(logCfg)
 				require.NoError(t, err)
@@ -391,9 +403,13 @@ func TestDrugo_Shutdown_Order(t *testing.T) {
 
 	// 设置日志管理器
 	logCfg := log.Config{
-		Dir:    "/tmp/test-logs",
-		Level:  "info",
-		Format: "console",
+		Level: "info",
+		Outputs: []log.OutputConfig{
+			{
+				Type:   "console",
+				Format: "text",
+			},
+		},
 	}
 	logger, err := log.NewManager(logCfg)
 	require.NoError(t, err)
@@ -470,9 +486,13 @@ func TestDrugo_Serve_Signal(t *testing.T) {
 
 	// 设置日志管理器
 	logCfg := log.Config{
-		Dir:    "/tmp/test-logs",
-		Level:  "info",
-		Format: "console",
+		Level: "info",
+		Outputs: []log.OutputConfig{
+			{
+				Type:   "console",
+				Format: "text",
+			},
+		},
 	}
 	logger, err := log.NewManager(logCfg)
 	require.NoError(t, err)
@@ -509,9 +529,13 @@ func TestDrugo_Serve_Timeout(t *testing.T) {
 
 	// 设置日志管理器
 	logCfg := log.Config{
-		Dir:    "/tmp/test-logs",
-		Level:  "info",
-		Format: "console",
+		Level: "info",
+		Outputs: []log.OutputConfig{
+			{
+				Type:   "console",
+				Format: "text",
+			},
+		},
 	}
 	logger, err := log.NewManager(logCfg)
 	require.NoError(t, err)
@@ -580,9 +604,13 @@ func BenchmarkDrugo_Boot(b *testing.B) {
 
 	// 设置日志管理器
 	logCfg := log.Config{
-		Dir:    "/tmp/test-logs",
-		Level:  "info",
-		Format: "console",
+		Level: "info",
+		Outputs: []log.OutputConfig{
+			{
+				Type:   "console",
+				Format: "text",
+			},
+		},
 	}
 	logger, err := log.NewManager(logCfg)
 	if err != nil {
